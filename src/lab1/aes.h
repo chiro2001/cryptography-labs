@@ -49,7 +49,8 @@ const test_t test_default = {
 
 const test_t test_dev = {
         .key_default = "securitysecurity",
-        .plain_text = "itisaestestclass",
+        // .plain_text = "itisaestestclass",
+        .plain_text = "itisaesclass1234",
         .save_file = "cryptography.aes",
         .auto_decode = 1,
         .auto_exit = 1
@@ -195,9 +196,8 @@ void matGFMul(int a[4][4], int b[4][4], int c[4][4]) {
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
       c[i][j] = 0;
-      for (int k = 0; k < 4; k++) {
+      for (int k = 0; k < 4; k++)
         c[i][j] ^= GFMul(a[i][k], b[k][j]);
-      }
     }
   }
 }
@@ -276,11 +276,6 @@ void subBytes(int array[4][4]) {
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++)
       array[i][j] = getNumFromSBox(array[i][j]);
-}
-
-void subBytesArray(int array[4]) {
-  for (int i = 0; i < 4; i++)
-    array[i] = getNumFromSBox(array[i]);
 }
 
 uint32_t subBytesWord(uint32_t data) {
@@ -470,7 +465,7 @@ void aes(char *p, int plen, char *key) {
  */
 void deAes(char *c, int clen, char *key) {
   int cArray[4][4];
-  int keylen, k;
+  int keylen, k, i;
   keylen = strlen(key);
   if (clen == 0 || clen % 16 != 0) {
     printf("密文字符长度必须为16的倍数！现在的长度为%d\n", clen);
@@ -482,7 +477,21 @@ void deAes(char *c, int clen, char *key) {
     exit(0);
   }
 
-  //请补充代码
+  extendKey(key);  //扩展密钥
+  for (k = 0; k < clen; k += 16) {
+    convertToIntArray(c + k, cArray);
+    addRoundKey(cArray, 10);
+    deShiftRows(cArray);  //行移位
+    deSubBytes(cArray);  //字节替换
+    for (i = 1; i < 10; i++) {
+      addRoundKey(cArray, 10 - i);
+      deMixColumns(cArray);  //列混合
+      deShiftRows(cArray);  //行移位
+      deSubBytes(cArray);  //字节替换
+    }
+    addRoundKey(cArray, 0);  //一开始的轮密钥加
+    convertArrayToStr(cArray, c + k);
+  }
 }
 
 /**
