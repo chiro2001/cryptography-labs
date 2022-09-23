@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "unistd.h"
 
@@ -9,6 +10,26 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
+
+void show_array_(char *name, int *array, int size) {
+  printf("array %s[0..%d]:\t", name, size);
+  for (int i = 0; i < size; i++) printf("%2x\t", array[i]);
+  puts("");
+}
+
+void show_matrix_(char *name, int *matrix, int size) {
+  printf("matrix %s[0..%d]:\n\t", name, size);
+  int len = (int) sqrt(size);
+  for (int i = 0; i < len; i++) {
+    for (int j = 0; j < len; j++)
+      printf("%2x\t", matrix[i * len + j]);
+    printf("\n\t");
+  }
+  puts("");
+}
+
+#define show_array(array) show_array_(#array, (int*)(array), sizeof(array) / sizeof(int))
+#define show_matrix(matrix) show_matrix_(#matrix, (int*)(matrix), sizeof(matrix) / sizeof(int))
 
 typedef struct {
   char *key_default;
@@ -27,8 +48,8 @@ const test_t test_default = {
 };
 
 const test_t test_dev = {
-        .key_default = "1145141919810AAA",
-        .plain_text = "PLAIN TEXT PLAIN",
+        .key_default = "securitysecurity",
+        .plain_text = "itisaestestclass",
         .save_file = "cryptography.aes",
         .auto_decode = 1,
         .auto_exit = 1
@@ -107,7 +128,7 @@ int deColM[4][4] = {0xe, 0xb, 0xd, 0x9, 0x9, 0xe, 0xb, 0xd,
 /**
  * 常量轮值表,密钥扩展用
  */
-unsigned int Rcon[10] = {0x01000000, 0x02000000, 0x04000000, 0x08000000,
+unsigned int Rcon[11] = {0x0, 0x01000000, 0x02000000, 0x04000000, 0x08000000,
                          0x10000000, 0x20000000, 0x40000000, 0x80000000,
                          0x1b000000, 0x36000000};
 
@@ -257,6 +278,18 @@ void subBytes(int array[4][4]) {
       array[i][j] = getNumFromSBox(array[i][j]);
 }
 
+void subBytesArray(int array[4]) {
+  for (int i = 0; i < 4; i++)
+    array[i] = getNumFromSBox(array[i]);
+}
+
+uint32_t subBytesWord(uint32_t data) {
+  uint8_t *p = (uint8_t *) &data;
+  for (int i = 0; i < 4; i++)
+    p[i] = (uint8_t) getNumFromSBox(p[i]);
+  return data;
+}
+
 /**
  * 逆字节替换
  */
@@ -281,6 +314,10 @@ void shiftArrayOneStep(int array[4], int isLeft) {
     array[1] = array[0];
     array[0] = t;
   }
+}
+
+uint32_t shiftByteOneStep(uint32_t data) {
+  return (data << 8) | ((data & 0xff000000) >> 24);
 }
 
 /**
@@ -333,21 +370,30 @@ void deMixColumns(int array[4][4]) {
  * 轮密钥加
  */
 void addRoundKey(int array[4][4], int round) {
-  //请补充代码
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 4; j++)
+      array[j][i] ^= ((w[round * 4 + i] >> ((3 - j) * 8)) & 0xff);
 }
 
 /**
  * 密钥扩展中的T函数（字循环，字节替换，异或）
  */
 int T(int num, int round) {
-  //请补充代码
+  return (int) (subBytesWord(shiftByteOneStep(num)) ^ Rcon[round]);
 }
 
 /**
  * 扩展密钥，结果是把w[44]中的每个元素初始化
  */
 void extendKey(char *key) {
-  //请补充代码完成后面的w[0]-w[43]
+  int Nk = 4, Nb = 4, Nr = 10;
+  for (int i = 0; i < Nk; i++)
+    w[i] = getWordFromStr(&key[i * 4]);
+  for (int i = Nk; i < Nb * (Nr + 1); i++) {
+    uint32_t temp = w[i - 1];
+    if (i % Nk == 0) temp = T((int) temp, i / Nk);
+    w[i] = (int) (w[i - Nk] ^ temp);
+  }
 }
 
 /**
@@ -391,40 +437,28 @@ void aes(char *p, int plen, char *key) {
   int keylen = strlen(key);
   int pArray[4][4];
   int k, i;
-
   if (plen == 0 || plen % 16 != 0) {
     printf("明文字符长度必须为16的倍数！\n");
     exit(0);
   }
-
   if (!checkKeyLen(keylen)) {
     printf("密钥字符长度错误！长度必须为16。当前长度为%d\n", keylen);
     exit(0);
   }
-
   extendKey(key);  //扩展密钥
   printW();
   for (k = 0; k < plen; k += 16) {
     convertToIntArray(p + k, pArray);
-
     addRoundKey(pArray, 0);  //一开始的轮密钥加
-
     for (i = 1; i < 10; i++) {
       subBytes(pArray);  //字节替换
-
       shiftRows(pArray);  //行移位
-
       mixColumns(pArray);  //列混合
-
       addRoundKey(pArray, i);
     }
-
     subBytes(pArray);  //字节替换
-
     shiftRows(pArray);  //行移位
-
     addRoundKey(pArray, 10);
-
     convertArrayToStr(pArray, p + k);
   }
 }

@@ -5,26 +5,7 @@
 #define Pass(name) Log("===== Pass " name " =====")
 #define TestF(func) Log("===== Test " #func " =====")
 #define PassF(func) Log("===== Pass " #func " =====")
-
-void show_array_(char *name, int *array, int size) {
-  printf("array %s[0..%d]:\t", name, size);
-  for (int i = 0; i < size; i++) printf("%d\t", array[i]);
-  puts("");
-}
-
-void show_matrix_(char *name, int *matrix, int size) {
-  printf("matrix %s[0..%d]:\n\t", name, size);
-  int len = (int) sqrt(size);
-  for (int i = 0; i < len; i++) {
-    for (int j = 0; j < len; j++)
-      printf("%2x\t", matrix[i * len + j]);
-    printf("\n\t");
-  }
-  puts("");
-}
-
-#define show_array(array) show_array_(#array, (int*)(array), sizeof(array) / sizeof(int))
-#define show_matrix(matrix) show_matrix_(#matrix, (int*)(matrix), sizeof(matrix) / sizeof(int))
+#define LogI(i) Log(#i " = 0x%x", i)
 
 int data_matrix[4][4];
 int data_array[4];
@@ -101,5 +82,27 @@ int main() {
   deMixColumns(data_matrix);
   show_matrix(data_matrix);
   PassF(deMixColumns);
+
+  TestF(shiftByteOneStep);
+  Log("0x11223344 -> 0x%08x", shiftByteOneStep(0x11223344));
+  PassF(shiftByteOneStep);
+
+  init_data();
+  int d[4][4] = {
+          0x0a, 0x04, 0x07, 0x09,
+          0x00, 0x00, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x00,
+          0x00, 0x00, 0x00, 0x00
+  };
+  int pkey[44] = {0x02050d05, 0};
+  TestF(addRoundKey);
+  memcpy(w, pkey, sizeof(pkey));
+  show_array(w);
+  addRoundKey(d, 0);
+  show_matrix(d);
+  PassF(addRoundKey);
+  Test("bit calc");
+  LogI((0x73656375 >> 24) & 0xff);
+  Pass("bit calc");
   return 0;
 }
