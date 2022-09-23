@@ -15,20 +15,23 @@ typedef struct {
   char *plain_text;
   char *save_file;
   int auto_decode;
+  int auto_exit;
 } test_t;
 
 const test_t test_default = {
         .key_default = NULL,
         .plain_text = NULL,
         .save_file = NULL,
-        .auto_decode = 0
+        .auto_decode = 0,
+        .auto_exit = 0
 };
 
 const test_t test_dev = {
         .key_default = "1145141919810AAA",
         .plain_text = "PLAIN TEXT PLAIN",
         .save_file = "cryptography.aes",
-        .auto_decode = 1
+        .auto_decode = 1,
+        .auto_exit = 1
 };
 
 const test_t *test = MUXDEF(DEBUG, &test_dev, &test_default);
@@ -524,17 +527,20 @@ int readStrFromFile(char *fileName, char *str) {
 void deAesFile(char *key) {
   char fileName[64];
   char c[MAXLEN];  //密文字符串
-  printf("请输入要解密的文件名，该文件必须和本程序在同一个目录\n");
-  if (scanf("%s", fileName) == 1) {
-    int clen = readStrFromFile(fileName, c);
-    printf("开始解密.........\n");
-    deAes(c, clen, key);
-    printf("解密后的明文ASCII为：\n");
-    printASCCI(c, clen);
-    printf("明文为：%s\n", c);
-    writeStrToFile(c, clen, fileName);
-    printf("现在可以打开%s来查看解密后的密文了！\n", fileName);
+  if (test->save_file == NULL) {
+    while (scanf("%s", fileName) != 1);
+    printf("请输入要解密的文件名，该文件必须和本程序在同一个目录\n");
+  } else {
+    strcpy(fileName, test->save_file);
   }
+  int clen = readStrFromFile(fileName, c);
+  printf("开始解密.........\n");
+  deAes(c, clen, key);
+  printf("解密后的明文ASCII为：\n");
+  printASCCI(c, clen);
+  printf("明文为：%s\n", c);
+  writeStrToFile(c, clen, fileName);
+  printf("现在可以打开%s来查看解密后的密文了！\n", fileName);
 }
 
 int main(int argc, char const *argv[]) {
@@ -576,6 +582,7 @@ int main(int argc, char const *argv[]) {
   } else {
     return 0;
   }
-  MUXDEF(WIN32, system("pause"), system("read"));
+  if (!test->auto_exit)
+    MUXDEF(WIN32, system("pause"), system("read"));
   return 0;
 }
