@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <math.h>
 
 #include "unistd.h"
 
@@ -32,7 +33,7 @@ void show_matrix_(char *name, int *matrix, int size) {
 #define show_matrix(matrix) show_matrix_(#matrix, (int*)(matrix), sizeof(matrix) / sizeof(int))
 
 typedef struct {
-  char *key_default;
+  char *key;
   char *plain_text;
   char *save_file;
   int auto_decode;
@@ -40,15 +41,39 @@ typedef struct {
 } test_t;
 
 const test_t test_default = {
-        .key_default = NULL,
+        .key = NULL,
         .plain_text = NULL,
         .save_file = NULL,
         .auto_decode = 0,
         .auto_exit = 0
 };
 
+test_t test_set[] = {
+        {
+                .key = "securitysecurity",
+                .plain_text = "thisisatestclass",
+                .save_file = "cryptography0.aes",
+                .auto_decode = 1,
+                .auto_exit = 1
+        },
+        {
+                .key = "cryptographylab1",
+                .plain_text = "liangxinrong200110619liangxinron",
+                .save_file = "cryptography1.aes",
+                .auto_decode = 1,
+                .auto_exit = 1
+        },
+        {
+                .key = "cryptographylab1",
+                .plain_text = "liangxinrong200110618liangxinron",
+                .save_file = "cryptography2.aes",
+                .auto_decode = 1,
+                .auto_exit = 1
+        }
+};
+
 const test_t test_dev = {
-        .key_default = "securitysecurity",
+        .key = "securitysecurity",
         // .plain_text = "itisaestestclass",
         .plain_text = "itisaesclass1234",
         .save_file = "cryptography.aes",
@@ -56,7 +81,7 @@ const test_t test_dev = {
         .auto_exit = 1
 };
 
-const test_t *test = MUXDEF(DEBUG, &test_dev, &test_default);
+test_t *test = MUXDEF(DEBUG, &test_dev, &test_default);
 
 #define MAXLEN 1024
 

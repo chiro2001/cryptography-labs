@@ -12,11 +12,11 @@ int main(int argc, char const *argv[]) {
   printf("================AES密码算法程序演示================\n\n");
 
   while (1) {
-    if (test->key_default == NULL) {
+    if (test->key == NULL) {
       printf("请输入16个字符的密钥：\n");
       getString(key, 17);
     } else {
-      strcpy(key, test->key_default);
+      strcpy(key, test->key);
     }
     klen = strlen(key);
     if (klen != 16) {

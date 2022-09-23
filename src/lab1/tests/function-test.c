@@ -1,4 +1,3 @@
-#include <math.h>
 #include "aes.h"
 
 #define Test(name) Log("===== Test " name " =====")
