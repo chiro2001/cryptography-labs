@@ -111,12 +111,6 @@ unsigned int Rcon[10] = {0x01000000, 0x02000000, 0x04000000, 0x08000000,
                          0x10000000, 0x20000000, 0x40000000, 0x80000000,
                          0x1b000000, 0x36000000};
 
-void swap(int *a, int *b) {
-  int c = *b;
-  *b = *a;
-  *a = c;
-}
-
 /**
  * 获取整型数据的低8位的左4个位
  */
@@ -174,6 +168,17 @@ int GFMul(int n, int s) {
     sum = GFMul2(sum);
   }
   return result;
+}
+
+void matGFMul(int a[4][4], int b[4][4], int c[4][4]) {
+  for (int i = 0; i < 4; i++) {
+    for (int j = 0; j < 4; j++) {
+      c[i][j] = 0;
+      for (int k = 0; k < 4; k++) {
+        c[i][j] ^= GFMul(a[i][k], b[k][j]);
+      }
+    }
+  }
 }
 
 /**
@@ -310,14 +315,18 @@ void deShiftRows(int array[4][4]) {
  * 列混合
  */
 void mixColumns(int array[4][4]) {
-  //请补充代码
+  int src[4][4];
+  memcpy(src, array, sizeof(src));
+  matGFMul(colM, src, array);
 }
 
 /**
  * 逆列混合
  */
 void deMixColumns(int array[4][4]) {
-  //请补充代码
+  int src[4][4];
+  memcpy(src, array, sizeof(src));
+  matGFMul(deColM, src, array);
 }
 
 /**

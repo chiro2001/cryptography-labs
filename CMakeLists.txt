@@ -24,6 +24,9 @@ set(INCLUDE_DIRS
 message(STATUS "Include dirs: ${INCLUDE_DIRS}")
 include_directories(${INCLUDE_DIRS})
 
+# Links
+link_libraries(m)
+
 file(GLOB LABS_PATH "${CMAKE_SOURCE_DIR}/src/*")
 
 foreach(LAB_PATH ${LABS_PATH})
