@@ -2,6 +2,7 @@
 #define __DEBUG_H__
 
 #include "utils.h"
+#include <assert.h>
 
 #define Log(format, ...)                                                    \
   _Log(CONFIG_PRINT_LOG, ANSI_FMT("[%s:%d %s] " format, ANSI_FG_BLUE) "\n", \
@@ -38,8 +39,7 @@
   do {                                                        \
     if (!(cond)) {                                            \
       Err(ANSI_FMT(format, ANSI_FG_RED) "\n", ##__VA_ARGS__); \
-      for (;;)                                                \
-        ;                                                     \
+      assert(0);                                              \
     }                                                         \
   } while (0)
 

@@ -1,6 +1,7 @@
 #include "aes.h"
 
 int main(int argc, char const *argv[]) {
+  test = &test_default;
   char key[17];
   int klen;
 

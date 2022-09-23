@@ -32,6 +32,13 @@ void show_matrix_(char *name, int *matrix, int size) {
 #define show_array(array) show_array_(#array, (int*)(array), sizeof(array) / sizeof(int))
 #define show_matrix(matrix) show_matrix_(#matrix, (int*)(matrix), sizeof(matrix) / sizeof(int))
 
+enum {
+  MODE_ECB,
+  MODE_CBC
+};
+int mode = MODE_CBC;
+// int mode = MODE_ECB;
+
 typedef struct {
   char *key;
   char *plain_text;
@@ -40,7 +47,7 @@ typedef struct {
   int auto_exit;
 } test_t;
 
-const test_t test_default = {
+test_t test_default = {
         .key = NULL,
         .plain_text = NULL,
         .save_file = NULL,
@@ -72,7 +79,7 @@ test_t test_set[] = {
         }
 };
 
-const test_t test_dev = {
+test_t test_dev = {
         .key = "securitysecurity",
         // .plain_text = "itisaestestclass",
         .plain_text = "itisaesclass1234",
@@ -294,6 +301,12 @@ int mergeArrayToInt(int array[4]) {
   return one | two | three | four;
 }
 
+void xorArray(int a[4][4], int b[4][4]) {
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 4; j++)
+      a[i][j] ^= b[i][j];
+}
+
 /**
  * 字节替换
  */
@@ -455,7 +468,7 @@ void printW() {
  */
 void aes(char *p, int plen, char *key) {
   int keylen = strlen(key);
-  int pArray[4][4];
+  int pArray[4][4] = {0};
   int k, i;
   if (plen == 0 || plen % 16 != 0) {
     printf("明文字符长度必须为16的倍数！\n");
@@ -467,8 +480,14 @@ void aes(char *p, int plen, char *key) {
   }
   extendKey(key);  //扩展密钥
   printW();
+  int lastArray[4][4] = {0};
   for (k = 0; k < plen; k += 16) {
     convertToIntArray(p + k, pArray);
+    if (mode == MODE_CBC)
+      xorArray(pArray, lastArray);
+    else if (k != 0) {
+      show_matrix(pArray);
+    }
     addRoundKey(pArray, 0);  //一开始的轮密钥加
     for (i = 1; i < 10; i++) {
       subBytes(pArray);  //字节替换
@@ -480,6 +499,10 @@ void aes(char *p, int plen, char *key) {
     shiftRows(pArray);  //行移位
     addRoundKey(pArray, 10);
     convertArrayToStr(pArray, p + k);
+    Assert(sizeof(lastArray) == sizeof(pArray), "array size not the same! sizeof(lastArray): %lu, sizeof(cArray): %lu",
+           sizeof(lastArray), sizeof(pArray));
+    if (mode == MODE_CBC)
+      memcpy(lastArray, pArray, sizeof(lastArray));
   }
 }
 
@@ -489,11 +512,12 @@ void aes(char *p, int plen, char *key) {
  * 参数 key: 密钥的字符串数组。
  */
 void deAes(char *c, int clen, char *key) {
-  int cArray[4][4];
+  int cArray[4][4] = {0};
   int keylen, k, i;
+  Log("当前加密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
   keylen = strlen(key);
   if (clen == 0 || clen % 16 != 0) {
-    printf("密文字符长度必须为16的倍数！现在的长度为%d\n", clen);
+    printf("密文字符长度必须为16的倍数！现在的长度为%d, %s\n", clen);
     exit(0);
   }
 
@@ -503,8 +527,14 @@ void deAes(char *c, int clen, char *key) {
   }
 
   extendKey(key);  //扩展密钥
+  int lastArray[4][4] = {0};
+  int lastArray2[4][4] = {0};
   for (k = 0; k < clen; k += 16) {
     convertToIntArray(c + k, cArray);
+    if (mode == MODE_CBC) {
+      memcpy(lastArray2, lastArray, sizeof(lastArray));
+      memcpy(lastArray, cArray, sizeof(lastArray));
+    }
     addRoundKey(cArray, 10);
     deShiftRows(cArray);  //行移位
     deSubBytes(cArray);  //字节替换
@@ -515,7 +545,11 @@ void deAes(char *c, int clen, char *key) {
       deSubBytes(cArray);  //字节替换
     }
     addRoundKey(cArray, 0);  //一开始的轮密钥加
+    if (mode == MODE_CBC)
+      xorArray(cArray, lastArray2);
     convertArrayToStr(cArray, c + k);
+    Assert(sizeof(lastArray) == sizeof(cArray), "array size not the same! sizeof(lastArray): %lu, sizeof(cArray): %lu",
+           sizeof(lastArray), sizeof(cArray));
   }
 }
 
@@ -533,9 +567,9 @@ void getString(char *str, int len) {
 }
 
 /**
- *打印ASCCI码
+ *打印ASCII码
  */
-void printASCCI(char *str, int len) {
+void printASCII(char *str, int len) {
   int c;
   for (int i = 0; i < len; i++) {
     c = (int) *str++;
@@ -592,8 +626,8 @@ void aesStrToFile(char *key) {
   printf("轮密钥..................\n");
   aes(p, plen, key);  // AES加密
   printf("进行AES加密..................\n");
-  printf("加密完后的密文的ASCCI为：\n");
-  printASCCI(p, plen);
+  printf("加密完后的密文的ASCII为：\n");
+  printASCII(p, plen);
   char fileName[64];
   if (test->save_file == NULL) {
     printf("请输入你想要写进的文件名，比如'test.txt':\n");
@@ -616,8 +650,8 @@ int readStrFromFile(char *fileName, char *str) {
     exit(0);
   }
 
-  int i;
-  for (i = 0; i < MAXLEN && (str[i] = getc(fp)) != EOF; i++);
+  int i, c;
+  for (i = 0; i < MAXLEN && (c = getc(fp)) != EOF; i++) str[i] = (char) c;
 
   if (i >= MAXLEN) {
     printf("解密文件过大！\n");
@@ -632,6 +666,7 @@ int readStrFromFile(char *fileName, char *str) {
 void deAesFile(char *key) {
   char fileName[64];
   char c[MAXLEN];  //密文字符串
+  Log("当前解密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
   if (test->save_file == NULL) {
     while (scanf("%s", fileName) != 1);
     printf("请输入要解密的文件名，该文件必须和本程序在同一个目录\n");
@@ -639,10 +674,10 @@ void deAesFile(char *key) {
     strcpy(fileName, test->save_file);
   }
   int clen = readStrFromFile(fileName, c);
-  printf("开始解密.........文件名：%s\n", fileName);
+  printf("开始解密.........文件名：%s，密文长度：%d\n", fileName, clen);
   deAes(c, clen, key);
   printf("解密后的明文ASCII为：\n");
-  printASCCI(c, clen);
+  printASCII(c, clen);
   printf("明文为：%s\n", c);
   writeStrToFile(c, clen, fileName);
   printf("现在可以打开%s来查看解密后的密文了！\n", fileName);
