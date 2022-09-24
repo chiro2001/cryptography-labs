@@ -35,9 +35,10 @@ impl Display for Args {
     }
 }
 
-pub fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
-    let mut aes = AES::new(key, mode);
-    if encode { aes.encode(reader, writer); } else { aes.decode(reader, writer); }
+pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
+    let keys = [0 as u8; 16];
+    let mut aes = AES::new(keys, mode);
+    if encode { aes.encode(reader, writer).await; }// else { aes.decode(reader, writer).await; }
 }
 
 fn main() {
@@ -53,17 +54,23 @@ fn main() {
         "stdout" => Box::new(io::stdout()),
         f => Box::new(File::create(f).unwrap())
     };
+    let mode = match args.mode.as_str() {
+        "ECB" => Ok(RunMode::ECB),
+        "CBC" => Ok(RunMode::CBC),
+        _ => Err(())
+    }.unwrap();
     if args.direction == "both" {
         let mut stdout: Box<dyn Write> = Box::new(io::stdout());
-        run(&mut reader, &mut writer, &args.key, RunMode::ECB, true);
+        block_on(run(&mut reader, &mut writer, &args.key, mode, true));
         assert!(args.output.as_str() != "stdout");
         let mut encoded = Box::new(File::open(args.output.as_str()).unwrap());
-        run(&mut encoded, &mut stdout, &args.key, RunMode::ECB, false);
+        block_on(run(&mut encoded, &mut stdout, &args.key, mode, false));
     } else {
-        run(&mut reader, &mut writer, &args.key, RunMode::ECB, args.direction == "encode");
+        block_on(run(&mut reader, &mut writer, &args.key, mode, args.direction == "encode"));
     }
 }
 
+#[cfg(test)]
 mod tests {
     #[cfg(test)]
     use std::io::Write;
@@ -110,22 +117,22 @@ mod tests {
 
     #[test]
     fn function_test() {
-        let key = String::from("securitysecurity");
-        let mut aes = AES::new(&key, RunMode::ECB);
-        let a = init_matrx();
-        println!("a: {a:x}");
-        aes.state = a;
-        aes.sub_bytes();
-        println!("sub: {:x}", aes.state);
-        println!("T(0, 0): {:x}", AES::function_t(0, 0));
-
-        aes.state = init_matrx();
-        aes.mix_columns();
-        println!("mix:\n{:3x}", aes.state);
-        aes.mix_columns_inv();
-        println!("mix_inv:\n{:3x}", aes.state);
-
-        println!("gf_mul(1, 1): {:x}", AES::gf_mul(1, 1));
-        println!("gf_mul2(1): {:x}", AES::gf_mul2(1));
+        // let key = String::from("securitysecurity");
+        // let mut aes = AES::new(&key, RunMode::ECB);
+        // let a = init_matrx();
+        // println!("a: {a:x}");
+        // aes.state = a;
+        // aes.sub_bytes();
+        // println!("sub: {:x}", aes.state);
+        // println!("T(0, 0): {:x}", AES::function_t(0, 0));
+        //
+        // aes.state = init_matrx();
+        // aes.mix_columns();
+        // println!("mix:\n{:3x}", aes.state);
+        // aes.mix_columns_inv();
+        // println!("mix_inv:\n{:3x}", aes.state);
+        //
+        // println!("gf_mul(1, 1): {:x}", AES::gf_mul(1, 1));
+        // println!("gf_mul2(1): {:x}", AES::gf_mul2(1));
     }
 }

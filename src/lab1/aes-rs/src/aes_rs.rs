@@ -1,26 +1,23 @@
 pub mod aes_rs {
-    use std::fs::File;
     use ndarray::prelude::*;
     use ndarray::{Array, concatenate};
-    use futures::executor::block_on;
-    use std::io;
     use std::io::{Read, Write};
-    use log::{info};
-    use clap::Parser;
-    use std::fmt::{Display, Formatter};
+    use std::sync::Arc;
+    use futures::future::join_all;
+    use futures::join;
     use lazy_static::lazy_static;
-    use simplelog::*;
+    use log::info;
     use crate::RunMode::CBC;
 
-    #[derive(Debug)]
+    #[derive(Debug, Copy, Clone)]
     pub struct AES {
-        pub state: Array<u8, Ix2>,
-        pub w: Array<u32, Ix1>,
+        pub state: [u8; 16],
+        pub w: [u32; 44],
         pub mode: RunMode,
-        pub key: String,
+        pub key: [u8; 16],
     }
 
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Copy, Clone)]
     pub enum RunMode {
         ECB,
         CBC,
@@ -81,24 +78,25 @@ pub mod aes_rs {
     }
 
     impl AES {
-        pub fn new(key: &String, mode: RunMode) -> AES {
-            return AES { state: Array::<u8, Ix2>::zeros((4, 4)), w: Array::zeros(44), mode, key: key.clone() };
+        pub fn new(key: [u8; 16], mode: RunMode) -> AES {
+            return AES { state: [0; 16], w: [0; 44], mode, key };
         }
 
         pub fn add_round_key(&mut self, round: usize) {
             for i in 0..4 {
                 for j in 0..4 {
-                    self.state[[j, i]] ^= ((self.w[[round * 4 + i]] >> ((3 - j) * 8)) & 0xff) as u8;
+                    // self.state[[j, i]] ^= ((self.w[[round * 4 + i]] >> ((3 - j) * 8)) & 0xff) as u8;
+                    self.state[i * 4 + j] ^= ((self.w[round * 4 + i] >> ((3 - j) * 8)) & 0xff) as u8;
                 }
             }
         }
 
         pub fn sub_bytes(&mut self) {
-            self.state = self.state.map(|x| S[*x as usize]);
+            self.state = self.state.map(|x| S[x as usize]);
         }
 
         pub fn sub_bytes_inv(&mut self) {
-            self.state = self.state.map(|x| S2[*x as usize]);
+            self.state = self.state.map(|x| S2[x as usize]);
         }
 
         pub fn gf_mul2(s: u8) -> u8 {
@@ -123,20 +121,24 @@ pub mod aes_rs {
             return result;
         }
 
+        fn swap(&mut self, i: usize, j: usize) {
+            let t = self.state[i * 4 + j];
+            self.state[i * 4 + j] = self.state[j * 4 + i];
+            self.state[j * 4 + i] = t;
+        }
+
         pub fn shift_rows(&mut self) {
-            self.state = (0..4).map(|i| {
-                let r = self.state.slice(s![i, ..]);
-                let c = concatenate![Axis(0), r, r];
-                Array::from(c.slice(s![i..(i+4)]).to_vec())
-            }).reduce(|a, b| concatenate![Axis(0), a, b]).unwrap().into_shape((4, 4)).unwrap();
+            let s = self.state.clone();
+            for i in 0..4 {
+                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + (i + x.1) % 4]);
+            }
         }
 
         pub fn shift_rows_inv(&mut self) {
-            self.state = (0..4).map(|i| {
-                let r = self.state.slice(s![i, ..]);
-                let c = concatenate![Axis(0), r, r];
-                Array::from(c.slice(s![(4-i)..(8-i)]).to_vec())
-            }).reduce(|a, b| concatenate![Axis(0), a, b]).unwrap().into_shape((4, 4)).unwrap();
+            let s = self.state.clone();
+            for i in 0..4 {
+                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + 4 - (i + x.1) % 4]);
+            }
         }
 
         pub fn mat_gf_mul(&mut self, m: &Array<u8, Ix2>) {
@@ -145,9 +147,9 @@ pub mod aes_rs {
                 for j in 0..4 {
                     let mut s: u8 = 0;
                     for k in 0..4 {
-                        s ^= AES::gf_mul(m[[i, k]], c[[k, j]]);
+                        s ^= AES::gf_mul(m[[i, k]], c[k * 4 + j]);
                     }
-                    self.state[[i, j]] = s;
+                    self.state[i * 4 + j] = s;
                 }
             }
         }
@@ -174,108 +176,134 @@ pub mod aes_rs {
             let nk = 4;
             let nb = 4;
             let nr = 10;
-            let keys = Array::from(Vec::from(self.key.as_bytes()))
-                .into_shape((4, self.key.bytes().len() / 4)).unwrap().map_axis(Axis(1), |x| {
+            let keys = Array::from(Vec::from(self.key))
+                .into_shape((4, self.key.len() / 4)).unwrap().map_axis(Axis(1), |x| {
                 ((x[[3]] as u32) << (0 * 8)) |
                     ((x[[2]] as u32) << (1 * 8)) |
                     ((x[[1]] as u32) << (2 * 8)) |
                     ((x[[0]] as u32) << (3 * 8))
             });
             for i in 0..nk {
-                self.w[[i]] = keys[[i]];
+                self.w[i] = keys[[i]];
             }
             for i in nk..(nb * (nr + 1)) {
                 let temp =
                     if i % nk == 0 {
-                        AES::function_t(self.w[[i - 1]], i / nk)
+                        AES::function_t(self.w[i - 1], i / nk)
                     } else {
-                        self.w[[i - 1]]
+                        self.w[i - 1]
                     };
-                self.w[[i]] = self.w[[i - nk]] ^ temp;
+                self.w[i] = self.w[i - nk] ^ temp;
             }
         }
 
-        pub fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+        async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> ([u8; 16], [u8; 16]) {
+            let mut aes = *self;
+            aes.state = source.clone();
+            if aes.mode == CBC {
+                // aes.state.zip_mut_with(&last, |a, b| { *a ^= *b; });
+                let _ = aes.state.iter_mut().zip(last).map(|(a, b)| *a ^= b);
+            }
+            // aes.state.swap_axes(0, 1);
+            aes.add_round_key(0);
+            for i in 1..10 {
+                aes.sub_bytes();
+                aes.shift_rows();
+                aes.mix_columns();
+                aes.add_round_key(i);
+            }
+            aes.sub_bytes();
+            aes.shift_rows();
+            aes.add_round_key(10);
+            let mut data: [u8; 16] = [0; 16];
+            // aes.state.swap_axes(0, 1);
+            let data_vec = aes.state.clone().into_iter();
+            for (place, element) in data.iter_mut().zip(data_vec) {
+                *place = element;
+                // print!("0x{:02x} ", element);
+            }
+            // println!();
+            (data, aes.state.clone())
+        }
+
+        pub async fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
             self.extend_key();
-            let mut last = Array::<u8, Ix2>::zeros((4, 4));
-            loop {
-                let mut source = [0 as u8; 16];
-                let n = match reader.read(source.as_mut()) {
-                    Ok(n) => n,
-                    _ => 0
-                };
-                let done = n != 16;
-                self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
-                if self.mode == CBC {
-                    self.state.zip_mut_with(&last, |a, b| { *a ^= *b; } );
+            let mut last = [0 as u8; 16];
+            if self.mode == CBC {
+                loop {
+                    let mut source = [0 as u8; 16];
+                    let n = match reader.read(source.as_mut()) {
+                        Ok(n) => n,
+                        _ => 0
+                    };
+                    let done = n != 16;
+                    let res = self.do_encode(source, last).await;
+                    let data = res.0;
+                    self.state = res.1;
+                    writer.write_all(&data).unwrap();
+                    if done { break; }
+                    last = self.state;
                 }
-                self.state.swap_axes(0, 1);
-                self.add_round_key(0);
-                for i in 1..10 {
-                    self.sub_bytes();
-                    self.shift_rows();
-                    self.mix_columns();
-                    self.add_round_key(i);
+            } else {
+                let mut sources = Vec::new();
+                loop {
+                    let mut source = [0 as u8; 16];
+                    match reader.read(source.as_mut()) {
+                        Ok(n) => match n {
+                            0 => break,
+                            _ => sources.push(source)
+                        },
+                        _ => break
+                    };
                 }
-                self.sub_bytes();
-                self.shift_rows();
-                self.add_round_key(10);
-                let mut data: [u8; 16] = [0; 16];
-                self.state.swap_axes(0, 1);
-                let data_vec = self.state.clone().into_iter();
-                for (place, element) in data.iter_mut().zip(data_vec) {
-                    *place = element;
-                    // print!("0x{:02x} ", element);
-                }
-                // println!();
-                writer.write_all(&data).unwrap();
-                if done { break; }
-                if self.mode == CBC {
-                    last = self.state.clone();
-                }
+                let mut copies = (0..sources.len()).map(|_| self.clone()).collect::<Vec<_>>();
+                let tasks = copies.iter_mut().zip(sources).map(|x| x.0.do_encode(x.1, [0; 16]));
+                let data = join_all(tasks).await;
+                // println!("data: {:?}", data);
+                let _ = data.iter().map(|x| writer.write_all(x.0.as_slice()).unwrap()).collect::<Vec<_>>();
             }
         }
 
-        pub fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
-            self.extend_key();
-            let mut last = Array::<u8, Ix2>::zeros((4, 4));
-            let mut last2 = Array::<u8, Ix2>::zeros((4, 4));
-            loop {
-                let mut source = [0 as u8; 16];
-                let n = match reader.read(source.as_mut()) {
-                    Ok(n) => n,
-                    _ => 0
-                };
-                let done = n == 0;
-                if done { break; }
-                assert_eq!(n, 16, "Encrypted data should aligned with 16 bytes!");
-                self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
-                if self.mode == CBC {
-                    last2 = last.clone();
-                    last = self.state.clone();
-                }
-                self.state.swap_axes(0, 1);
-                self.add_round_key(10);
-                self.shift_rows_inv();
-                self.sub_bytes_inv();
-                for i in 1..10 {
-                    self.add_round_key(10 - i);
-                    self.mix_columns_inv();
-                    self.shift_rows_inv();
-                    self.sub_bytes_inv();
-                }
-                self.add_round_key(0);
-                let mut data: [u8; 16] = [0; 16];
-                self.state.swap_axes(0, 1);
-                if self.mode == CBC {
-                    self.state = last2.clone();
-                }
-                let data_vec = self.state.clone().into_iter();
-                for (place, element) in data.iter_mut().zip(data_vec) {
-                    *place = element;
-                }
-                writer.write_all(&data).unwrap();
-            }
-        }
+        // pub async fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+        //     self.extend_key();
+        //     let mut last = Array::<u8, Ix2>::zeros((4, 4));
+        //     let mut last2 = Array::<u8, Ix2>::zeros((4, 4));
+        //     loop {
+        //         let mut source = [0 as u8; 16];
+        //         let n = match reader.read(source.as_mut()) {
+        //             Ok(n) => n,
+        //             _ => 0
+        //         };
+        //         let done = n == 0;
+        //         if done { break; }
+        //         assert_eq!(n, 16, "Encrypted data should aligned with 16 bytes!");
+        //         self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
+        //         if self.mode == CBC {
+        //             last2 = last.clone();
+        //             last = self.state.clone();
+        //         }
+        //         self.state.swap_axes(0, 1);
+        //         self.add_round_key(10);
+        //         self.shift_rows_inv();
+        //         self.sub_bytes_inv();
+        //         for i in 1..10 {
+        //             self.add_round_key(10 - i);
+        //             self.mix_columns_inv();
+        //             self.shift_rows_inv();
+        //             self.sub_bytes_inv();
+        //         }
+        //         self.add_round_key(0);
+        //         let mut data: [u8; 16] = [0; 16];
+        //         self.state.swap_axes(0, 1);
+        //         if self.mode == CBC {
+        //             self.state = last2.clone();
+        //         }
+        //         let data_vec = self.state.clone().into_iter();
+        //         for (place, element) in data.iter_mut().zip(data_vec) {
+        //             *place = element;
+        //         }
+        //         writer.write_all(&data).unwrap();
+        //     }
+        // }
     }
 }
