@@ -1,7 +1,6 @@
-#[macro_use]
 use std::fs::File;
 use ndarray::prelude::*;
-use ndarray::Array;
+use ndarray::{Array, concatenate};
 use futures::executor::block_on;
 use std::io;
 use std::io::{Read, Write};
@@ -46,6 +45,7 @@ struct AES {
     w: Array::<u32, Ix1>,
     round: u8,
     mode: RunMode,
+    key: String,
 }
 
 #[derive(Debug)]
@@ -101,29 +101,16 @@ lazy_static! {
         0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
         0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63,
         0x55, 0x21, 0x0c, 0x7d];
-    static ref COL_M: [u8; 16] = [2, 3, 1, 1, 1, 2, 3, 1, 1, 1, 2, 3, 3, 1, 1, 2];
-    static ref COL_M_INV: [u8; 16] = [0xe, 0xb, 0xd, 0x9, 0x9, 0xe, 0xb, 0xd, 0xd, 0x9, 0xe, 0xb, 0xb, 0xd, 0x9, 0xe];
+    static ref COL_M: Array<u8, Ix2> = array![[2, 3, 1, 1, 1, 2, 3, 1, 1, 1, 2, 3, 3, 1, 1, 2]].into_shape((4, 4)).unwrap();
+    static ref COL_M_INV: Array<u8, Ix2> = array![[0xe, 0xb, 0xd, 0x9, 0x9, 0xe, 0xb, 0xd, 0xd, 0x9, 0xe, 0xb, 0xb, 0xd, 0x9, 0xe]].into_shape((4, 4)).unwrap();
+    static ref RCON: [u32; 11] = [
+        0x00000000, 0x01000000, 0x02000000, 0x04000000, 0x08000000,
+        0x10000000, 0x20000000, 0x40000000, 0x80000000, 0x1b000000, 0x36000000];
 }
 
 impl AES {
-    pub fn new(mode: RunMode) -> AES {
-        return AES { state: Array::<u8, Ix2>::zeros((4, 4)), w: Array::zeros(44), round: 0, mode };
-    }
-    pub async fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write, key: &String) {
-        loop {
-            let mut source = [0 as u8; 16];
-            let n = match reader.read(source.as_mut()) {
-                Ok(n) => n,
-                _ => 0
-            };
-            let done = n != 16;
-            self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
-            println!("array: {}", self.state);
-            self.shift_rows();
-            if done { break; }
-        }
-        writer.write_all("done\n".as_bytes()).unwrap();
-        info!("done");
+    pub fn new(key: &String, mode: RunMode) -> AES {
+        return AES { state: Array::<u8, Ix2>::zeros((4, 4)), w: Array::zeros(44), round: 0, mode, key: key.clone() };
     }
 
     fn add_round_key(&mut self, round: usize) {
@@ -150,7 +137,7 @@ impl AES {
         }
     }
 
-    fn gf_mul(&self, n: u8, s: u8) {
+    fn gf_mul(&self, n: u8, s: u8) -> u8 {
         let mut m = n;
         let mut sum = s;
         let mut result: u8 = 0;
@@ -161,18 +148,140 @@ impl AES {
             m >>= 1;
             sum = self.gf_mul2(sum);
         }
+        return result;
     }
 
     fn shift_rows(&mut self) {
-        let r = self.state.slice_mut(s![0..4]);
-        println!("r: {}", r);
+        self.state = (0..4).map(|i| {
+            let r = self.state.slice(s![i, ..]);
+            let c = concatenate![Axis(0), r, r];
+            Array::from(c.slice(s![i..(i+4)]).to_vec())
+        }).reduce(|a, b| concatenate![Axis(0), a, b]).unwrap().into_shape((4, 4)).unwrap();
+    }
+
+    fn shift_rows_inv(&mut self) {
+        self.state = (0..4).map(|i| {
+            let r = self.state.slice(s![i, ..]);
+            let c = concatenate![Axis(0), r, r];
+            Array::from(c.slice(s![(4-i)..(8-i)]).to_vec())
+        }).reduce(|a, b| concatenate![Axis(0), a, b]).unwrap().into_shape((4, 4)).unwrap();
+    }
+
+    fn mat_gf_mul(&mut self, m: &Array<u8, Ix2>) {
+        for i in 0..4 {
+            for j in 0..4 {
+                self.state[[i, j]] = ((0..4).map(|k| {
+                    self.gf_mul(m[[i, k]], self.state[[k, j]]) as u32
+                }).sum::<u32>() & 0xff) as u8;
+            }
+        }
+    }
+
+    fn mix_columns(&mut self) {
+        self.mat_gf_mul(&COL_M);
+    }
+
+    fn mix_columns_inv(&mut self) {
+        self.mat_gf_mul(&COL_M_INV);
+    }
+
+    fn functionT(&self, num: u32, round: usize) -> u32 {
+        let shifted = ((num << 8) | ((num & 0xff000000) >> 24)) as usize;
+        let subbed =
+            ((S[(shifted & 0x000000ff) >> (0 * 8)] as u32) << (0 * 8)) |
+                ((S[(shifted & 0x0000ff00) >> (1 * 8)] as u32) << (0 * 8)) |
+                ((S[(shifted & 0x00ff0000) >> (2 * 8)] as u32) << (0 * 8)) |
+                ((S[(shifted & 0xff000000) >> (3 * 8)] as u32) << (0 * 8));
+        subbed ^ RCON[round]
+    }
+
+    fn extend_key(&mut self) {
+        let Nk = 4;
+        let Nb = 4;
+        let Nr = 10;
+        let keys = Array::from(Vec::from(self.key.as_bytes()))
+            .into_shape((4, self.key.bytes().len() / 4)).unwrap().fold_axis(Axis(1), 0, |a, b| (*a as u32) + (*b as u32));
+        for i in 0..4 {
+            self.w[[i]] = keys[[i]];
+        }
+        for i in Nk..(Nb * (Nr + 1)) {
+            let temp =
+                if i % Nk == 0 {
+                    self.functionT(self.w[[i - 1]], i / Nk)
+                } else {
+                    self.w[[i - 1]]
+                };
+            self.w[[i]] = self.w[[i - Nk]] ^ temp;
+        }
+    }
+
+    pub async fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+        self.extend_key();
+        loop {
+            let mut source = [0 as u8; 16];
+            let n = match reader.read(source.as_mut()) {
+                Ok(n) => n,
+                _ => 0
+            };
+            let done = n != 16;
+            self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
+            self.add_round_key(0);
+            for i in 1..10 {
+                self.sub_bytes();
+                self.shift_rows();
+                self.mix_columns();
+                self.add_round_key(i);
+            }
+            self.sub_bytes();
+            self.shift_rows();
+            self.add_round_key(10);
+            let mut data: [u8; 16] = [0; 16];
+            let data_vec = self.state.clone().into_raw_vec();
+            for (place, element) in data.iter_mut().zip(data_vec) {
+                *place = element;
+            }
+            writer.write_all(&data).unwrap();
+            if done { break; }
+        }
+        info!("done");
+    }
+
+    pub async fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+        self.extend_key();
+        loop {
+            let mut source = [0 as u8; 16];
+            let n = match reader.read(source.as_mut()) {
+                Ok(n) => n,
+                _ => 0
+            };
+            let done = n != 16;
+            self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
+            self.add_round_key(10);
+            self.shift_rows();
+            self.sub_bytes();
+            for i in 1..10 {
+                self.add_round_key(10 - i);
+                self.mix_columns_inv();
+                self.shift_rows_inv();
+                self.sub_bytes_inv();
+            }
+            self.add_round_key(0);
+            let mut data: [u8; 16] = [0; 16];
+            let data_vec = self.state.clone().into_raw_vec();
+            for (place, element) in data.iter_mut().zip(data_vec) {
+                *place = element;
+            }
+            writer.write_all(&data).unwrap();
+            if done { break; }
+        }
+        info!("done");
     }
 }
 
 // async fn run<T: Read>(stream: Bytes<T>, key: String, writer: &mut dyn Write) {
 async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
-    let mut aes = AES::new(mode);
-    if encode { aes.encode(reader, writer, key).await; }
+    let mut aes = AES::new(key, mode);
+    if encode { aes.encode(reader, writer).await; } else { aes.decode(reader, writer).await; }
 }
 
 fn main() {
