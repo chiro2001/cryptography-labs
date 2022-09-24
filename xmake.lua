@@ -24,7 +24,6 @@ for _, dir in ipairs(os.dirs(os.projectdir() .. "/src/*")) do
     target_end()
     for _, testpath in ipairs(os.files(os.projectdir() .. "/src/" .. name .. "/tests/*")) do
       local test = getname(testpath)
-      print(test)
       target(name .. "-" .. test)
         set_kind("binary")
         add_files(testpath)
