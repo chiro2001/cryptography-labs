@@ -31,7 +31,7 @@ struct Args {
 
 impl Display for Args {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "input={}, output={}", self.input, self.output)
+        write!(f, "input={}, output={}, direction={}, mode={}, key={}", self.input, self.output, self.direction, self.mode, self.key)
     }
 }
 
@@ -43,7 +43,7 @@ pub fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: Ru
 fn main() {
     CombinedLogger::init(vec![TermLogger::new(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Auto)]).unwrap();
     let args = Args::parse();
-    info!("args: {}", args);
+    if args.output != "stdout" { info!("args: {}", args); }
 
     let mut reader: Box<dyn Read> = match args.input.as_str() {
         "stdin" => Box::new(io::stdin()),
@@ -54,10 +54,8 @@ fn main() {
         f => Box::new(File::create(f).unwrap())
     };
     if args.direction == "both" {
-        info!("encode: {} -> {}", args.input, args.output);
         let mut stdout: Box<dyn Write> = Box::new(io::stdout());
         run(&mut reader, &mut writer, &args.key, RunMode::ECB, true);
-        info!("decode: {} -> {}", args.output, "stdout");
         assert!(args.output.as_str() != "stdout");
         let mut encoded = Box::new(File::open(args.output.as_str()).unwrap());
         run(&mut encoded, &mut stdout, &args.key, RunMode::ECB, false);

@@ -225,17 +225,13 @@ int GFMul(int n, int s) {
 }
 
 void matGFMul(int a[4][4], int b[4][4], int c[4][4]) {
-  // show_matrix_("a", a, 16);
-  // show_matrix_("b", b, 16);
   for (int i = 0; i < 4; i++) {
     for (int j = 0; j < 4; j++) {
       c[i][j] = 0;
       for (int k = 0; k < 4; k++)
         c[i][j] ^= GFMul(a[i][k], b[k][j]);
-      // printf("%3x", c[i][j]);
     }
   }
-  // puts("");
 }
 
 /**
@@ -464,16 +460,6 @@ void printW() {
   printf("\n");
 }
 
-void disp(int p[4][4]) {
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < 4; j++) {
-      // printf("0x%02x(%c) ", p[j][i], p[j][i]);
-      printf("0x%02x ", p[j][i]);
-    }
-  }
-  puts("");
-}
-
 /**
  *每一个分组的加密,必须为16的倍数
  *参数 p: 明文的字符串数组。
@@ -497,25 +483,21 @@ void aes(char *p, int plen, char *key) {
   int lastArray[4][4] = {0};
   for (k = 0; k < plen; k += 16) {
     convertToIntArray(p + k, pArray);
-    disp(pArray);
     if (mode == MODE_CBC)
       xorArray(pArray, lastArray);
     else if (k != 0) {
       show_matrix(pArray);
     }
     addRoundKey(pArray, 0);  //一开始的轮密钥加
-    disp(pArray);
     for (i = 1; i < 10; i++) {
       subBytes(pArray);  //字节替换
       shiftRows(pArray);  //行移位
       mixColumns(pArray);  //列混合
       addRoundKey(pArray, i);
-      disp(pArray);
     }
     subBytes(pArray);  //字节替换
     shiftRows(pArray);  //行移位
     addRoundKey(pArray, 10);
-    disp(pArray);
     convertArrayToStr(pArray, p + k);
     Assert(sizeof(lastArray) == sizeof(pArray), "array size not the same! sizeof(lastArray): %lu, sizeof(cArray): %lu",
            sizeof(lastArray), sizeof(pArray));
@@ -549,7 +531,6 @@ void deAes(char *c, int clen, char *key) {
   int lastArray2[4][4] = {0};
   for (k = 0; k < clen; k += 16) {
     convertToIntArray(c + k, cArray);
-    disp(cArray);
     if (mode == MODE_CBC) {
       memcpy(lastArray2, lastArray, sizeof(lastArray));
       memcpy(lastArray, cArray, sizeof(lastArray));
@@ -557,16 +538,13 @@ void deAes(char *c, int clen, char *key) {
     addRoundKey(cArray, 10);
     deShiftRows(cArray);  //行移位
     deSubBytes(cArray);  //字节替换
-    disp(cArray);
     for (i = 1; i < 10; i++) {
       addRoundKey(cArray, 10 - i);
       deMixColumns(cArray);  //列混合
       deShiftRows(cArray);  //行移位
       deSubBytes(cArray);  //字节替换
-      disp(cArray);
     }
     addRoundKey(cArray, 0);  //一开始的轮密钥加
-    disp(cArray);
     if (mode == MODE_CBC)
       xorArray(cArray, lastArray2);
     convertArrayToStr(cArray, c + k);

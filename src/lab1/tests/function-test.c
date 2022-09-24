@@ -54,11 +54,6 @@ int main() {
   show_matrix(data_matrix);
   PassF(deSubBytes);
 
-  TestF(T);
-  int num = 0, round = 0;
-  printf("T(%d, %d) = %x\n", num, round, T(num, round));
-  PassF(T);
-
   int a[4][4] = {
           0x02, 0x03, 0x01, 0x01,
           0x01, 0x02, 0x03, 0x01,
@@ -108,13 +103,5 @@ int main() {
   Test("bit calc");
   LogI((0x73656375 >> 24) & 0xff);
   Pass("bit calc");
-
-  TestF(GFMul);
-  printf("GFMul(1, 1) = %x\n", GFMul(1, 1));
-  PassF(GFMul);
-
-  TestF(GFMul2);
-  printf("GFMul2(1) = %x\n", GFMul2(1));
-  PassF(GFMul2);
   return 0;
 }

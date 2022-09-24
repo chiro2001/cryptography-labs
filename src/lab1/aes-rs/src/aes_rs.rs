@@ -140,8 +140,6 @@ pub mod aes_rs {
         }
 
         pub fn mat_gf_mul(&mut self, m: &Array<u8, Ix2>) {
-            // println!("a:\n{:3x}", m);
-            // println!("b:\n{:3x}", self.state);
             let c = self.state.clone();
             for i in 0..4 {
                 for j in 0..4 {
@@ -149,11 +147,9 @@ pub mod aes_rs {
                     for k in 0..4 {
                         s ^= AES::gf_mul(m[[i, k]], c[[k, j]]);
                     }
-                    // print!("{:3x}", s);
                     self.state[[i, j]] = s;
                 }
             }
-            // println!();
         }
 
         pub fn mix_columns(&mut self) {
@@ -199,20 +195,6 @@ pub mod aes_rs {
             }
         }
 
-        fn display_state(&self) {
-            // for c in self.state.clone().into_raw_vec().iter() {
-            //     print!("0x{:02x}({}) ", c, *c as char);
-            // }
-            for i in 0..4 {
-                for j in 0..4 {
-                    let c = self.state[[j, i]];
-                    // print!("0x{:02x}({}) ", c, c as char);
-                    print!("0x{:02x} ", c);
-                }
-            }
-            println!();
-        }
-
         pub fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
             self.extend_key();
             let mut last = Array::<u8, Ix2>::zeros((4, 4));
@@ -223,40 +205,35 @@ pub mod aes_rs {
                     _ => 0
                 };
                 let done = n != 16;
-                if done { break; }
-                info!("read {n} bytes: {}", String::from_utf8_lossy(&source));
                 self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
                 if self.mode == CBC {
                     self.state.zip_mut_with(&last, |a, b| { *a ^= *b; } );
                 }
                 self.state.swap_axes(0, 1);
-                self.display_state();
                 self.add_round_key(0);
-                self.display_state();
                 for i in 1..10 {
                     self.sub_bytes();
                     self.shift_rows();
                     self.mix_columns();
                     self.add_round_key(i);
-                    self.display_state();
                 }
                 self.sub_bytes();
                 self.shift_rows();
                 self.add_round_key(10);
-                self.display_state();
                 let mut data: [u8; 16] = [0; 16];
                 self.state.swap_axes(0, 1);
                 let data_vec = self.state.clone().into_iter();
                 for (place, element) in data.iter_mut().zip(data_vec) {
                     *place = element;
+                    // print!("0x{:02x} ", element);
                 }
+                // println!();
                 writer.write_all(&data).unwrap();
                 if done { break; }
                 if self.mode == CBC {
                     last = self.state.clone();
                 }
             }
-            info!("done");
         }
 
         pub fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
@@ -269,29 +246,25 @@ pub mod aes_rs {
                     Ok(n) => n,
                     _ => 0
                 };
-                let done = n != 16;
+                let done = n == 0;
                 if done { break; }
-                info!("read {n} bytes");
+                assert_eq!(n, 16, "Encrypted data should aligned with 16 bytes!");
                 self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
                 if self.mode == CBC {
                     last2 = last.clone();
                     last = self.state.clone();
                 }
                 self.state.swap_axes(0, 1);
-                self.display_state();
                 self.add_round_key(10);
                 self.shift_rows_inv();
                 self.sub_bytes_inv();
-                self.display_state();
                 for i in 1..10 {
                     self.add_round_key(10 - i);
                     self.mix_columns_inv();
                     self.shift_rows_inv();
                     self.sub_bytes_inv();
-                    self.display_state();
                 }
                 self.add_round_key(0);
-                self.display_state();
                 let mut data: [u8; 16] = [0; 16];
                 self.state.swap_axes(0, 1);
                 if self.mode == CBC {
@@ -302,9 +275,7 @@ pub mod aes_rs {
                     *place = element;
                 }
                 writer.write_all(&data).unwrap();
-                if done { break; }
             }
-            info!("done");
         }
     }
 }
