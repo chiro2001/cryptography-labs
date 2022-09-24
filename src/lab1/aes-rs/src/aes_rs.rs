@@ -10,16 +10,17 @@ pub mod aes_rs {
     use std::fmt::{Display, Formatter};
     use lazy_static::lazy_static;
     use simplelog::*;
+    use crate::RunMode::CBC;
 
     #[derive(Debug)]
     pub struct AES {
-        state: Array<u8, Ix2>,
-        w: Array<u32, Ix1>,
-        mode: RunMode,
-        key: String,
+        pub state: Array<u8, Ix2>,
+        pub w: Array<u32, Ix1>,
+        pub mode: RunMode,
+        pub key: String,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     pub enum RunMode {
         ECB,
         CBC,
@@ -113,7 +114,7 @@ pub mod aes_rs {
             let mut sum = s;
             let mut result: u8 = 0;
             while m != 0 {
-                if m & 0x1 == 0 {
+                if m & 0x1 != 0 {
                     result ^= sum;
                 }
                 m >>= 1;
@@ -139,13 +140,20 @@ pub mod aes_rs {
         }
 
         pub fn mat_gf_mul(&mut self, m: &Array<u8, Ix2>) {
+            // println!("a:\n{:3x}", m);
+            // println!("b:\n{:3x}", self.state);
+            let c = self.state.clone();
             for i in 0..4 {
                 for j in 0..4 {
-                    self.state[[i, j]] = ((0..4).map(|k| {
-                        AES::gf_mul(m[[i, k]], self.state[[k, j]]) as u32
-                    }).sum::<u32>() & 0xff) as u8;
+                    let mut s: u8 = 0;
+                    for k in 0..4 {
+                        s ^= AES::gf_mul(m[[i, k]], c[[k, j]]);
+                    }
+                    // print!("{:3x}", s);
+                    self.state[[i, j]] = s;
                 }
             }
+            // println!();
         }
 
         pub fn mix_columns(&mut self) {
@@ -160,9 +168,9 @@ pub mod aes_rs {
             let shifted = ((num << 8) | ((num & 0xff000000) >> 24)) as usize;
             let subbed =
                 ((S[(shifted & 0x000000ff) >> (0 * 8)] as u32) << (0 * 8)) |
-                    ((S[(shifted & 0x0000ff00) >> (1 * 8)] as u32) << (0 * 8)) |
-                    ((S[(shifted & 0x00ff0000) >> (2 * 8)] as u32) << (0 * 8)) |
-                    ((S[(shifted & 0xff000000) >> (3 * 8)] as u32) << (0 * 8));
+                    ((S[(shifted & 0x0000ff00) >> (1 * 8)] as u32) << (1 * 8)) |
+                    ((S[(shifted & 0x00ff0000) >> (2 * 8)] as u32) << (2 * 8)) |
+                    ((S[(shifted & 0xff000000) >> (3 * 8)] as u32) << (3 * 8));
             subbed ^ RCON[round]
         }
 
@@ -177,7 +185,6 @@ pub mod aes_rs {
                     ((x[[1]] as u32) << (2 * 8)) |
                     ((x[[0]] as u32) << (3 * 8))
             });
-            println!("key: {}, keys: {:x}", self.key, &keys);
             for i in 0..nk {
                 self.w[[i]] = keys[[i]];
             }
@@ -188,21 +195,27 @@ pub mod aes_rs {
                     } else {
                         self.w[[i - 1]]
                     };
-                println!("temp: {temp:x}");
                 self.w[[i]] = self.w[[i - nk]] ^ temp;
-            }
-            println!("keys:");
-            for i in 0..11 {
-                for j in 0..4 {
-                    let index = i * 4 + j;
-                    print!("w[{index}] = 0x{:x} ", self.w[[index]]);
-                }
-                println!();
             }
         }
 
-        pub async fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+        fn display_state(&self) {
+            // for c in self.state.clone().into_raw_vec().iter() {
+            //     print!("0x{:02x}({}) ", c, *c as char);
+            // }
+            for i in 0..4 {
+                for j in 0..4 {
+                    let c = self.state[[j, i]];
+                    // print!("0x{:02x}({}) ", c, c as char);
+                    print!("0x{:02x} ", c);
+                }
+            }
+            println!();
+        }
+
+        pub fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
             self.extend_key();
+            let mut last = Array::<u8, Ix2>::zeros((4, 4));
             loop {
                 let mut source = [0 as u8; 16];
                 let n = match reader.read(source.as_mut()) {
@@ -210,30 +223,46 @@ pub mod aes_rs {
                     _ => 0
                 };
                 let done = n != 16;
+                if done { break; }
+                info!("read {n} bytes: {}", String::from_utf8_lossy(&source));
                 self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
+                if self.mode == CBC {
+                    self.state.zip_mut_with(&last, |a, b| { *a ^= *b; } );
+                }
+                self.state.swap_axes(0, 1);
+                self.display_state();
                 self.add_round_key(0);
+                self.display_state();
                 for i in 1..10 {
                     self.sub_bytes();
                     self.shift_rows();
                     self.mix_columns();
                     self.add_round_key(i);
+                    self.display_state();
                 }
                 self.sub_bytes();
                 self.shift_rows();
                 self.add_round_key(10);
+                self.display_state();
                 let mut data: [u8; 16] = [0; 16];
-                let data_vec = self.state.clone().into_raw_vec();
+                self.state.swap_axes(0, 1);
+                let data_vec = self.state.clone().into_iter();
                 for (place, element) in data.iter_mut().zip(data_vec) {
                     *place = element;
                 }
                 writer.write_all(&data).unwrap();
                 if done { break; }
+                if self.mode == CBC {
+                    last = self.state.clone();
+                }
             }
             info!("done");
         }
 
-        pub async fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+        pub fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
             self.extend_key();
+            let mut last = Array::<u8, Ix2>::zeros((4, 4));
+            let mut last2 = Array::<u8, Ix2>::zeros((4, 4));
             loop {
                 let mut source = [0 as u8; 16];
                 let n = match reader.read(source.as_mut()) {
@@ -241,19 +270,34 @@ pub mod aes_rs {
                     _ => 0
                 };
                 let done = n != 16;
+                if done { break; }
+                info!("read {n} bytes");
                 self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
+                if self.mode == CBC {
+                    last2 = last.clone();
+                    last = self.state.clone();
+                }
+                self.state.swap_axes(0, 1);
+                self.display_state();
                 self.add_round_key(10);
-                self.shift_rows();
-                self.sub_bytes();
+                self.shift_rows_inv();
+                self.sub_bytes_inv();
+                self.display_state();
                 for i in 1..10 {
                     self.add_round_key(10 - i);
                     self.mix_columns_inv();
                     self.shift_rows_inv();
                     self.sub_bytes_inv();
+                    self.display_state();
                 }
                 self.add_round_key(0);
+                self.display_state();
                 let mut data: [u8; 16] = [0; 16];
-                let data_vec = self.state.clone().into_raw_vec();
+                self.state.swap_axes(0, 1);
+                if self.mode == CBC {
+                    self.state = last2.clone();
+                }
+                let data_vec = self.state.clone().into_iter();
                 for (place, element) in data.iter_mut().zip(data_vec) {
                     *place = element;
                 }

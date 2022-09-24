@@ -35,9 +35,9 @@ impl Display for Args {
     }
 }
 
-pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
+pub fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
     let mut aes = AES::new(key, mode);
-    if encode { aes.encode(reader, writer).await; } else { aes.decode(reader, writer).await; }
+    if encode { aes.encode(reader, writer); } else { aes.decode(reader, writer); }
 }
 
 fn main() {
@@ -54,11 +54,15 @@ fn main() {
         f => Box::new(File::create(f).unwrap())
     };
     if args.direction == "both" {
+        info!("encode: {} -> {}", args.input, args.output);
         let mut stdout: Box<dyn Write> = Box::new(io::stdout());
-        block_on(run(&mut reader, &mut writer, &args.key, RunMode::ECB, true));
-        block_on(run(&mut reader, &mut stdout, &args.key, RunMode::ECB, false));
+        run(&mut reader, &mut writer, &args.key, RunMode::ECB, true);
+        info!("decode: {} -> {}", args.output, "stdout");
+        assert!(args.output.as_str() != "stdout");
+        let mut encoded = Box::new(File::open(args.output.as_str()).unwrap());
+        run(&mut encoded, &mut stdout, &args.key, RunMode::ECB, false);
     } else {
-        block_on(run(&mut reader, &mut writer, &args.key, RunMode::ECB, args.direction == "encode"));
+        run(&mut reader, &mut writer, &args.key, RunMode::ECB, args.direction == "encode");
     }
 }
 
@@ -67,13 +71,13 @@ mod tests {
     use std::io::Write;
     use ndarray::prelude::*;
     use ndarray::{array, concatenate, s, stack};
-    use crate::AES;
+    use crate::{AES, RunMode};
 
     #[test]
     fn array_test() {
         println!("testing ndarray");
 
-        let mut a: Array<u8, Ix2> = array![
+        let a: Array<u8, Ix2> = array![
             [0, 0, 1, 4],
             [2, 3, 4, 4],
             [5, 5, 6, 4],
@@ -98,14 +102,32 @@ mod tests {
         // println!("stacks: {}", stacks[0]);
     }
 
-    #[test]
-    fn function_test() {
+    fn init_matrx() -> Array<u8, Ix2> {
         let mut v = Vec::new();
         for i in 0..16 {
-            v.push(i);
+            v.push(i as u8);
         }
-        let a = Array::from(v).into_shape((4, 4)).unwrap();
+        Array::from(v).into_shape((4, 4)).unwrap()
+    }
+
+    #[test]
+    fn function_test() {
+        let key = String::from("securitysecurity");
+        let mut aes = AES::new(&key, RunMode::ECB);
+        let a = init_matrx();
         println!("a: {a:x}");
-        let mut aes = AES::new();
+        aes.state = a;
+        aes.sub_bytes();
+        println!("sub: {:x}", aes.state);
+        println!("T(0, 0): {:x}", AES::function_t(0, 0));
+
+        aes.state = init_matrx();
+        aes.mix_columns();
+        println!("mix:\n{:3x}", aes.state);
+        aes.mix_columns_inv();
+        println!("mix_inv:\n{:3x}", aes.state);
+
+        println!("gf_mul(1, 1): {:x}", AES::gf_mul(1, 1));
+        println!("gf_mul2(1): {:x}", AES::gf_mul2(1));
     }
 }
