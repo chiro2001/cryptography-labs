@@ -1,12 +1,9 @@
 pub mod aes_rs {
     use ndarray::prelude::*;
-    use ndarray::{Array, concatenate};
+    use ndarray::{Array};
     use std::io::{Read, Write};
-    use std::sync::Arc;
     use futures::future::join_all;
-    use futures::join;
     use lazy_static::lazy_static;
-    use log::info;
     use crate::RunMode::CBC;
 
     #[derive(Debug, Copy, Clone)]
@@ -70,8 +67,8 @@ pub mod aes_rs {
             0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
             0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63,
             0x55, 0x21, 0x0c, 0x7d];
-        static ref COL_M: Array<u8, Ix2> = array![[2, 3, 1, 1, 1, 2, 3, 1, 1, 1, 2, 3, 3, 1, 1, 2]].into_shape((4, 4)).unwrap();
-        static ref COL_M_INV: Array<u8, Ix2> = array![[0xe, 0xb, 0xd, 0x9, 0x9, 0xe, 0xb, 0xd, 0xd, 0x9, 0xe, 0xb, 0xb, 0xd, 0x9, 0xe]].into_shape((4, 4)).unwrap();
+        static ref COL_M: [u8; 16] = [2, 3, 1, 1, 1, 2, 3, 1, 1, 1, 2, 3, 3, 1, 1, 2];
+        static ref COL_M_INV: [u8; 16] = [0xe, 0xb, 0xd, 0x9, 0x9, 0xe, 0xb, 0xd, 0xd, 0x9, 0xe, 0xb, 0xb, 0xd, 0x9, 0xe];
         static ref RCON: [u32; 11] = [
             0x00000000, 0x01000000, 0x02000000, 0x04000000, 0x08000000,
             0x10000000, 0x20000000, 0x40000000, 0x80000000, 0x1b000000, 0x36000000];
@@ -121,12 +118,6 @@ pub mod aes_rs {
             return result;
         }
 
-        fn swap(&mut self, i: usize, j: usize) {
-            let t = self.state[i * 4 + j];
-            self.state[i * 4 + j] = self.state[j * 4 + i];
-            self.state[j * 4 + i] = t;
-        }
-
         pub fn shift_rows(&mut self) {
             let s = self.state.clone();
             for i in 0..4 {
@@ -141,13 +132,13 @@ pub mod aes_rs {
             }
         }
 
-        pub fn mat_gf_mul(&mut self, m: &Array<u8, Ix2>) {
+        pub fn mat_gf_mul(&mut self, m: &[u8; 16]) {
             let c = self.state.clone();
             for i in 0..4 {
                 for j in 0..4 {
                     let mut s: u8 = 0;
                     for k in 0..4 {
-                        s ^= AES::gf_mul(m[[i, k]], c[k * 4 + j]);
+                        s ^= AES::gf_mul(m[i * 4 + k], c[k * 4 + j]);
                     }
                     self.state[i * 4 + j] = s;
                 }
@@ -197,11 +188,21 @@ pub mod aes_rs {
             }
         }
 
+        fn read_source(reader: &mut dyn Read) -> Option<[u8; 16]> {
+            let mut source = [0 as u8; 16];
+            match reader.read(source.as_mut()) {
+                Ok(n) => match n {
+                    0 => None,
+                    _ => Some(source),
+                },
+                _ => None
+            }
+        }
+
         async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> ([u8; 16], [u8; 16]) {
             let mut aes = *self;
             aes.state = source.clone();
             if aes.mode == CBC {
-                // aes.state.zip_mut_with(&last, |a, b| { *a ^= *b; });
                 let _ = aes.state.iter_mut().zip(last).map(|(a, b)| *a ^= b);
             }
             // aes.state.swap_axes(0, 1);
@@ -231,79 +232,84 @@ pub mod aes_rs {
             let mut last = [0 as u8; 16];
             if self.mode == CBC {
                 loop {
-                    let mut source = [0 as u8; 16];
-                    let n = match reader.read(source.as_mut()) {
-                        Ok(n) => n,
-                        _ => 0
+                    let source = match AES::read_source(reader) {
+                        Some(s) => s,
+                        None => break
                     };
-                    let done = n != 16;
                     let res = self.do_encode(source, last).await;
                     let data = res.0;
                     self.state = res.1;
                     writer.write_all(&data).unwrap();
-                    if done { break; }
                     last = self.state;
                 }
             } else {
                 let mut sources = Vec::new();
-                loop {
-                    let mut source = [0 as u8; 16];
-                    match reader.read(source.as_mut()) {
-                        Ok(n) => match n {
-                            0 => break,
-                            _ => sources.push(source)
-                        },
-                        _ => break
-                    };
+                while let Some(source) = AES::read_source(reader) {
+                    sources.push(source);
                 }
                 let mut copies = (0..sources.len()).map(|_| self.clone()).collect::<Vec<_>>();
                 let tasks = copies.iter_mut().zip(sources).map(|x| x.0.do_encode(x.1, [0; 16]));
                 let data = join_all(tasks).await;
-                // println!("data: {:?}", data);
                 let _ = data.iter().map(|x| writer.write_all(x.0.as_slice()).unwrap()).collect::<Vec<_>>();
             }
         }
 
-        // pub async fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
-        //     self.extend_key();
-        //     let mut last = Array::<u8, Ix2>::zeros((4, 4));
-        //     let mut last2 = Array::<u8, Ix2>::zeros((4, 4));
-        //     loop {
-        //         let mut source = [0 as u8; 16];
-        //         let n = match reader.read(source.as_mut()) {
-        //             Ok(n) => n,
-        //             _ => 0
-        //         };
-        //         let done = n == 0;
-        //         if done { break; }
-        //         assert_eq!(n, 16, "Encrypted data should aligned with 16 bytes!");
-        //         self.state = Array::<u8, _>::from(vec![source]).into_shape((4, 4)).unwrap();
-        //         if self.mode == CBC {
-        //             last2 = last.clone();
-        //             last = self.state.clone();
-        //         }
-        //         self.state.swap_axes(0, 1);
-        //         self.add_round_key(10);
-        //         self.shift_rows_inv();
-        //         self.sub_bytes_inv();
-        //         for i in 1..10 {
-        //             self.add_round_key(10 - i);
-        //             self.mix_columns_inv();
-        //             self.shift_rows_inv();
-        //             self.sub_bytes_inv();
-        //         }
-        //         self.add_round_key(0);
-        //         let mut data: [u8; 16] = [0; 16];
-        //         self.state.swap_axes(0, 1);
-        //         if self.mode == CBC {
-        //             self.state = last2.clone();
-        //         }
-        //         let data_vec = self.state.clone().into_iter();
-        //         for (place, element) in data.iter_mut().zip(data_vec) {
-        //             *place = element;
-        //         }
-        //         writer.write_all(&data).unwrap();
-        //     }
-        // }
+        async fn do_decode(&self, source: [u8; 16], last: [u8; 16]) -> ([u8; 16], [u8; 16]) {
+            let mut aes = *self;
+            aes.state = source.clone();
+            // aes.state.swap_axes(0, 1);
+            aes.add_round_key(10);
+            aes.shift_rows_inv();
+            aes.sub_bytes_inv();
+            for i in 1..10 {
+                aes.add_round_key(10 - i);
+                aes.mix_columns_inv();
+                aes.shift_rows_inv();
+                aes.sub_bytes_inv();
+            }
+            aes.add_round_key(0);
+            let mut data: [u8; 16] = [0; 16];
+            // aes.state.swap_axes(0, 1);
+            let data_vec = aes.state.clone().into_iter();
+            for (place, element) in data.iter_mut().zip(data_vec) {
+                *place = element;
+                // print!("0x{:02x} ", element);
+            }
+            // println!();
+            if aes.mode == CBC {
+                let _ = aes.state.iter_mut().zip(last).map(|(a, b)| *a ^= b);
+            }
+            (data, aes.state.clone())
+        }
+
+        pub async fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
+            self.extend_key();
+            let mut last = [0 as u8; 16];
+            let mut last2: [u8; 16];
+            if self.mode == CBC {
+                loop {
+                    let source = match AES::read_source(reader) {
+                        Some(s) => s,
+                        None => break
+                    };
+                    self.state = source.clone();
+                    last2 = last.clone();
+                    last = source.clone();
+                    let res = self.do_decode(source, last2.clone()).await;
+                    let data = res.0;
+                    self.state = res.1;
+                    writer.write_all(&data).unwrap();
+                }
+            } else {
+                let mut sources = Vec::new();
+                while let Some(source) = AES::read_source(reader) {
+                    sources.push(source);
+                }
+                let mut copies = (0..sources.len()).map(|_| self.clone()).collect::<Vec<_>>();
+                let tasks = copies.iter_mut().zip(sources).map(|x| x.0.do_decode(x.1, [0; 16]));
+                let data = join_all(tasks).await;
+                let _ = data.iter().map(|x| writer.write_all(x.0.as_slice()).unwrap()).collect::<Vec<_>>();
+            }
+        }
     }
 }
