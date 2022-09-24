@@ -3,7 +3,7 @@ use ndarray::prelude::*;
 use ndarray::Array;
 use futures::executor::block_on;
 use std::io;
-use std::io::{Bytes, Read, Stdin};
+use std::io::{Bytes, Read, Stdin, Write};
 use log::{info, trace, warn};
 
 #[macro_use]
@@ -11,12 +11,18 @@ extern crate log;
 extern crate simplelog;
 
 use simplelog::*;
+use crate::RunMode::ECB;
 
 #[derive(Debug)]
 struct AES {
     state: Array::<u8, Ix2>,
     w: Array::<u32, Ix1>,
     round: u8,
+}
+
+#[derive(Debug)]
+enum RunMode {
+    ECB, CBC
 }
 
 impl AES {
@@ -26,19 +32,12 @@ impl AES {
     fn encode() {}
 }
 
-async fn run<T: Read>(stream: Bytes<T>, key: String) {
-    trace!("a trace log");
-    info!("a info long: {}", "abc");
-
-    info!("{}:{}", file!(), line!());
-
-    error!("Bright red error");
-    info!("This only appears in the log file");
-    debug!("This level is currently not enabled for any logger");
-    // warn!("a warning log: {}, retrying", err);
-    for b in stream {
+// async fn run<T: Read>(stream: Bytes<T>, key: String, writer: &mut dyn Write) {
+async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode) {
+    for b in reader.bytes() {
         print!("{}", b.unwrap() as char);
     }
+    writer.write_all("done\n".as_bytes()).unwrap();
 }
 
 fn main() {
@@ -71,6 +70,11 @@ fn main() {
 
     let key = String::from("securitysecurity");
 
+    let mut writer = File::create("res.aes").unwrap();
+    writer.write_all("ss".as_bytes()).unwrap();
+
     // block_on(run(io::stdin().bytes()));
-    block_on(run(File::open("xmake.lua").unwrap().bytes(), key));
+    // block_on(run(File::open("xmake.lua").unwrap().bytes(), key, &mut writer));
+    let mut reader = File::open("xmake.lua").unwrap();
+    block_on(run(&mut reader, &mut writer, &key, ECB));
 }
