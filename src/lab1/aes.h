@@ -425,6 +425,7 @@ void extendKey(char *key) {
   for (int i = Nk; i < Nb * (Nr + 1); i++) {
     uint32_t temp = w[i - 1];
     if (i % Nk == 0) temp = T((int) temp, i / Nk);
+    printf("temp: %x\n", temp);
     w[i] = (int) (w[i - Nk] ^ temp);
   }
 }
