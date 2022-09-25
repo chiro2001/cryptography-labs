@@ -316,7 +316,6 @@ int mergeArrayToInt(int array[4]) {
 }
 
 void xorArray(int a[4][4], int b[4][4]) {
-  printf("do_xor:\n");
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++)
       a[i][j] ^= b[i][j];
