@@ -82,8 +82,8 @@ pub mod aes_rs {
         pub fn add_round_key(&mut self, round: usize) {
             for i in 0..4 {
                 for j in 0..4 {
-                    // self.state[[j, i]] ^= ((self.w[[round * 4 + i]] >> ((3 - j) * 8)) & 0xff) as u8;
-                    self.state[i * 4 + j] ^= ((self.w[round * 4 + i] >> ((3 - j) * 8)) & 0xff) as u8;
+                    let r = ((self.w[round * 4 + i] >> ((3 - j) * 8)) & 0xff) as u8;
+                    self.state[i + j * 4] ^= r;
                 }
             }
         }
@@ -118,17 +118,26 @@ pub mod aes_rs {
             return result;
         }
 
+        fn reverse_axis(&mut self) {
+            let c = self.state.clone();
+            for i in 0..4 {
+                for j in 0..4 {
+                    self.state[i + j * 4] = c[i * 4 + j];
+                }
+            }
+        }
+
         pub fn shift_rows(&mut self) {
             let s = self.state.clone();
             for i in 0..4 {
-                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + (i + x.1) % 4]);
+                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + (i + x.1) % 4]).collect::<Vec<_>>();
             }
         }
 
         pub fn shift_rows_inv(&mut self) {
             let s = self.state.clone();
             for i in 0..4 {
-                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + 4 - (i + x.1) % 4]);
+                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + ((4 - i) + x.1) % 4]).collect::<Vec<_>>();
             }
         }
 
@@ -186,6 +195,7 @@ pub mod aes_rs {
                     };
                 self.w[i] = self.w[i - nk] ^ temp;
             }
+            // println!("{:2x?}", self.w);
         }
 
         fn read_source(reader: &mut dyn Read) -> Option<[u8; 16]> {
@@ -199,13 +209,19 @@ pub mod aes_rs {
             }
         }
 
+        fn do_xor(&mut self, last: &[u8; 16]) {
+            let _ = self.state.iter_mut().zip(last).map(|(a, b)| *a ^= b).collect::<Vec<_>>();
+        }
+
+        // fn disp(&self) {
+        //     println!("{:2x?}", self.state);
+        // }
+
         async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> ([u8; 16], [u8; 16]) {
             let mut aes = *self;
             aes.state = source.clone();
-            if aes.mode == CBC {
-                let _ = aes.state.iter_mut().zip(last).map(|(a, b)| *a ^= b);
-            }
-            // aes.state.swap_axes(0, 1);
+            if aes.mode == CBC { aes.do_xor(&last); }
+            aes.reverse_axis();
             aes.add_round_key(0);
             for i in 1..10 {
                 aes.sub_bytes();
@@ -217,7 +233,7 @@ pub mod aes_rs {
             aes.shift_rows();
             aes.add_round_key(10);
             let mut data: [u8; 16] = [0; 16];
-            // aes.state.swap_axes(0, 1);
+            aes.reverse_axis();
             let data_vec = aes.state.clone().into_iter();
             for (place, element) in data.iter_mut().zip(data_vec) {
                 *place = element;
@@ -257,7 +273,7 @@ pub mod aes_rs {
         async fn do_decode(&self, source: [u8; 16], last: [u8; 16]) -> ([u8; 16], [u8; 16]) {
             let mut aes = *self;
             aes.state = source.clone();
-            // aes.state.swap_axes(0, 1);
+            aes.reverse_axis();
             aes.add_round_key(10);
             aes.shift_rows_inv();
             aes.sub_bytes_inv();
@@ -268,17 +284,15 @@ pub mod aes_rs {
                 aes.sub_bytes_inv();
             }
             aes.add_round_key(0);
+            if aes.mode == CBC { aes.do_xor(&last); }
+            aes.reverse_axis();
             let mut data: [u8; 16] = [0; 16];
-            // aes.state.swap_axes(0, 1);
             let data_vec = aes.state.clone().into_iter();
             for (place, element) in data.iter_mut().zip(data_vec) {
                 *place = element;
                 // print!("0x{:02x} ", element);
             }
             // println!();
-            if aes.mode == CBC {
-                let _ = aes.state.iter_mut().zip(last).map(|(a, b)| *a ^= b);
-            }
             (data, aes.state.clone())
         }
 

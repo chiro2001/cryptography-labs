@@ -37,7 +37,7 @@ impl Display for Args {
 
 pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
     let mut keys = [0 as u8; 16];
-    let _ = keys.iter_mut().zip(key.as_bytes()).map(|x| *x.0 = *x.1);
+    let _ = keys.iter_mut().zip(key.as_bytes()).map(|x| *x.0 = *x.1).collect::<Vec<_>>();
     let mut aes = AES::new(keys, mode);
     if encode { aes.encode(reader, writer).await; } else { aes.decode(reader, writer).await; }
 }
@@ -73,8 +73,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(test)]
-    use std::io::Write;
     use ndarray::prelude::*;
     use ndarray::{array, concatenate, s, stack};
     use crate::{AES, RunMode};
@@ -108,32 +106,43 @@ mod tests {
         // println!("stacks: {}", stacks[0]);
     }
 
-    fn init_matrx() -> Array<u8, Ix2> {
+    fn init_matrix() -> [u8; 16] {
         let mut v = Vec::new();
         for i in 0..16 {
             v.push(i as u8);
         }
-        Array::from(v).into_shape((4, 4)).unwrap()
+        // let m = Array::from(v).into_shape((4, 4)).unwrap();
+        let mut m = [0 as u8; 16];
+        let _ = m.iter_mut().zip(v).map(|x| *x.0 = x.1).collect::<Vec<_>>();
+        m
     }
 
     #[test]
     fn function_test() {
-        // let key = String::from("securitysecurity");
-        // let mut aes = AES::new(&key, RunMode::ECB);
-        // let a = init_matrx();
-        // println!("a: {a:x}");
-        // aes.state = a;
-        // aes.sub_bytes();
-        // println!("sub: {:x}", aes.state);
-        // println!("T(0, 0): {:x}", AES::function_t(0, 0));
-        //
-        // aes.state = init_matrx();
-        // aes.mix_columns();
-        // println!("mix:\n{:3x}", aes.state);
-        // aes.mix_columns_inv();
-        // println!("mix_inv:\n{:3x}", aes.state);
-        //
-        // println!("gf_mul(1, 1): {:x}", AES::gf_mul(1, 1));
-        // println!("gf_mul2(1): {:x}", AES::gf_mul2(1));
+        let key = String::from("securitysecurity");
+        let mut bytes = [0 as u8; 16];
+        let _ = bytes.iter_mut().zip(key.as_bytes()).map(|x| *x.0 = *x.1).collect::<Vec<_>>();
+        let mut aes = AES::new(bytes, RunMode::ECB);
+        let a = init_matrix();
+        println!("a: {a:x?}");
+        aes.state = a;
+        aes.sub_bytes();
+        println!("sub: {:x?}", aes.state);
+        println!("T(0, 0): {:x}", AES::function_t(0, 0));
+
+        aes.state = init_matrix();
+        aes.mix_columns();
+        println!("mix:\n{:3x?}", aes.state);
+        aes.mix_columns_inv();
+        println!("mix_inv:\n{:3x?}", aes.state);
+
+        aes.state = init_matrix();
+        aes.shift_rows();
+        println!("shift:\n{:3x?}", aes.state);
+        aes.shift_rows_inv();
+        println!("shift_inv:\n{:3x?}", aes.state);
+
+        println!("gf_mul(1, 1): {:x}", AES::gf_mul(1, 1));
+        println!("gf_mul2(1): {:x}", AES::gf_mul2(1));
     }
 }

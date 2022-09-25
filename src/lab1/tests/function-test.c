@@ -103,5 +103,15 @@ int main() {
   Test("bit calc");
   LogI((0x73656375 >> 24) & 0xff);
   Pass("bit calc");
+
+  init_data();
+  TestF(shiftRows);
+  shiftRows(data_matrix);
+  show_matrix(data_matrix);
+  PassF(shiftRows);
+  TestF(deShiftRows);
+  deShiftRows(data_matrix);
+  show_matrix(data_matrix);
+  PassF(deShiftRows);
   return 0;
 }

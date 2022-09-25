@@ -19,14 +19,19 @@ void show_array_(char *name, int *array, int size) {
 }
 
 void show_matrix_(char *name, int *matrix, int size) {
-  printf("matrix %s[0..%d]:\n\t", name, size);
+  printf("matrix %s[0..%d]:\n", name, size);
   int len = (int) sqrt(size);
-  for (int i = 0; i < len; i++) {
-    for (int j = 0; j < len; j++)
-      printf("%2x\t", matrix[i * len + j]);
-    printf("\n\t");
+  // for (int i = 0; i < len; i++) {
+  //   for (int j = 0; j < len; j++)
+  //     printf("%2x\t", matrix[i * len + j]);
+  //   printf("\n\t");
+  // }
+  printf("[");
+  for (int i = 0; i < size; i++) {
+    if (i == size - 1) printf("%2x", matrix[i]);
+    else printf("%2x, ", matrix[i]);
   }
-  puts("");
+  puts("]");
 }
 
 #define show_array(array) show_array_(#array, (int*)(array), sizeof(array) / sizeof(int))
@@ -404,8 +409,11 @@ void deMixColumns(int array[4][4]) {
  */
 void addRoundKey(int array[4][4], int round) {
   for (int i = 0; i < 4; i++)
-    for (int j = 0; j < 4; j++)
-      array[j][i] ^= ((w[round * 4 + i] >> ((3 - j) * 8)) & 0xff);
+    for (int j = 0; j < 4; j++) {
+      int r = ((w[round * 4 + i] >> ((3 - j) * 8)) & 0xff);
+      // printf("w[%d] = %4x; r: %2x\n", round * 4 + i, w[round * 4 + i], r);
+      array[j][i] ^= r;
+    }
 }
 
 /**
@@ -458,6 +466,15 @@ void printW() {
     if (j % 4 == 0) printf("\n");
   }
   printf("\n");
+}
+
+void disp(int s[4][4]) {
+  printf("[");
+  for (int *p = (int *) s; p - (int *) s != 16; p++) {
+    if (p - 15 == (int *) s) printf("%2x", *p);
+    else printf("%2x, ", *p);
+  }
+  printf("]\n");
 }
 
 /**
@@ -535,18 +552,23 @@ void deAes(char *c, int clen, char *key) {
       memcpy(lastArray2, lastArray, sizeof(lastArray));
       memcpy(lastArray, cArray, sizeof(lastArray));
     }
+    disp(cArray);
     addRoundKey(cArray, 10);
     deShiftRows(cArray);  //行移位
     deSubBytes(cArray);  //字节替换
+    disp(cArray);
     for (i = 1; i < 10; i++) {
       addRoundKey(cArray, 10 - i);
       deMixColumns(cArray);  //列混合
       deShiftRows(cArray);  //行移位
       deSubBytes(cArray);  //字节替换
+      disp(cArray);
     }
     addRoundKey(cArray, 0);  //一开始的轮密钥加
+    disp(cArray);
     if (mode == MODE_CBC)
       xorArray(cArray, lastArray2);
+    disp(cArray);
     convertArrayToStr(cArray, c + k);
     Assert(sizeof(lastArray) == sizeof(cArray), "array size not the same! sizeof(lastArray): %lu, sizeof(cArray): %lu",
            sizeof(lastArray), sizeof(cArray));
