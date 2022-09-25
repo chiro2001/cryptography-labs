@@ -7,6 +7,7 @@ use std::io::{Read, Write};
 use log::{info};
 use clap::Parser;
 use std::fmt::{Display, Formatter};
+use std::iter::zip;
 use simplelog::*;
 use crate::aes_rs::aes_rs::{AES, RunMode};
 
@@ -37,7 +38,7 @@ impl Display for Args {
 
 pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
     let mut keys = [0 as u8; 16];
-    let _ = keys.iter_mut().zip(key.as_bytes()).map(|x| *x.0 = *x.1).collect::<Vec<_>>();
+    for (a, b) in zip(keys.iter_mut(), key.as_bytes()) { *a = *b; }
     let mut aes = AES::new(keys, mode);
     if encode { aes.encode(reader, writer).await; } else { aes.decode(reader, writer).await; }
 }

@@ -2,7 +2,6 @@ pub mod aes_rs {
     use ndarray::prelude::*;
     use ndarray::{Array};
     use std::io::{Read, Write};
-    use std::iter::zip;
     use futures::future::join_all;
     use lazy_static::lazy_static;
     use crate::RunMode::CBC;
@@ -217,14 +216,6 @@ pub mod aes_rs {
         // fn disp(&self) {
         //     println!("{:2x?}", self.state);
         // }
-
-        fn get_state_data(&self) -> [u8; 16] {
-            let mut data = [0 as u8; 16];
-            for (a, b) in zip(data.iter_mut(), self.state) {
-                *a = b;
-            }
-            data
-        }
 
         async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
