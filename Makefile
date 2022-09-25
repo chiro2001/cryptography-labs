@@ -23,5 +23,6 @@ run: all
 
 clean:
 	-rm -rf $(BUILD_DIR)
+	-rm -rf .xmake
 
 .PHONY: all run
