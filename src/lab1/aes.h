@@ -63,7 +63,7 @@ test_t test_default = {
 test_t test_set[] = {
         {
                 .key = "securitysecurity",
-                .plain_text = "thisisatestclass",
+                .plain_text = "thisisatestclassthisisatestclassthisisatestclassthisisatestclass",
                 .save_file = "cryptography0.aes",
                 .auto_decode = 1,
                 .auto_exit = 1
@@ -169,6 +169,15 @@ int deColM[4][4] = {0xe, 0xb, 0xd, 0x9, 0x9, 0xe, 0xb, 0xd,
 unsigned int Rcon[11] = {0x0, 0x01000000, 0x02000000, 0x04000000, 0x08000000,
                          0x10000000, 0x20000000, 0x40000000, 0x80000000,
                          0x1b000000, 0x36000000};
+
+void disp(int s[4][4]) {
+  printf("[");
+  for (int *p = (int *) s; p - (int *) s != 16; p++) {
+    if (p - 15 == (int *) s) printf("%2x", *p);
+    else printf("%2x, ", *p);
+  }
+  printf("]\n");
+}
 
 /**
  * 获取整型数据的低8位的左4个位
@@ -307,6 +316,7 @@ int mergeArrayToInt(int array[4]) {
 }
 
 void xorArray(int a[4][4], int b[4][4]) {
+  printf("do_xor:\n");
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 4; j++)
       a[i][j] ^= b[i][j];
@@ -468,15 +478,6 @@ void printW() {
   printf("\n");
 }
 
-void disp(int s[4][4]) {
-  printf("[");
-  for (int *p = (int *) s; p - (int *) s != 16; p++) {
-    if (p - 15 == (int *) s) printf("%2x", *p);
-    else printf("%2x, ", *p);
-  }
-  printf("]\n");
-}
-
 /**
  *每一个分组的加密,必须为16的倍数
  *参数 p: 明文的字符串数组。
@@ -502,9 +503,6 @@ void aes(char *p, int plen, char *key) {
     convertToIntArray(p + k, pArray);
     if (mode == MODE_CBC)
       xorArray(pArray, lastArray);
-    else if (k != 0) {
-      show_matrix(pArray);
-    }
     addRoundKey(pArray, 0);  //一开始的轮密钥加
     for (i = 1; i < 10; i++) {
       subBytes(pArray);  //字节替换
@@ -552,23 +550,18 @@ void deAes(char *c, int clen, char *key) {
       memcpy(lastArray2, lastArray, sizeof(lastArray));
       memcpy(lastArray, cArray, sizeof(lastArray));
     }
-    disp(cArray);
     addRoundKey(cArray, 10);
     deShiftRows(cArray);  //行移位
     deSubBytes(cArray);  //字节替换
-    disp(cArray);
     for (i = 1; i < 10; i++) {
       addRoundKey(cArray, 10 - i);
       deMixColumns(cArray);  //列混合
       deShiftRows(cArray);  //行移位
       deSubBytes(cArray);  //字节替换
-      disp(cArray);
     }
     addRoundKey(cArray, 0);  //一开始的轮密钥加
-    disp(cArray);
     if (mode == MODE_CBC)
       xorArray(cArray, lastArray2);
-    disp(cArray);
     convertArrayToStr(cArray, c + k);
     Assert(sizeof(lastArray) == sizeof(cArray), "array size not the same! sizeof(lastArray): %lu, sizeof(cArray): %lu",
            sizeof(lastArray), sizeof(cArray));

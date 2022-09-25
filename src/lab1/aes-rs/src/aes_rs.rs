@@ -2,6 +2,7 @@ pub mod aes_rs {
     use ndarray::prelude::*;
     use ndarray::{Array};
     use std::io::{Read, Write};
+    use std::iter::zip;
     use futures::future::join_all;
     use lazy_static::lazy_static;
     use crate::RunMode::CBC;
@@ -119,7 +120,7 @@ pub mod aes_rs {
         }
 
         fn reverse_axis(&mut self) {
-            let c = self.state.clone();
+            let c = self.state;
             for i in 0..4 {
                 for j in 0..4 {
                     self.state[i + j * 4] = c[i * 4 + j];
@@ -128,21 +129,21 @@ pub mod aes_rs {
         }
 
         pub fn shift_rows(&mut self) {
-            let s = self.state.clone();
+            let s = self.state;
             for i in 0..4 {
-                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + (i + x.1) % 4]).collect::<Vec<_>>();
+                for (a, b) in zip(self.state[(i * 4)..(i * 4 + 4)].iter_mut(), 0..4) { *a = s[i * 4 + (i + b) % 4]; }
             }
         }
 
         pub fn shift_rows_inv(&mut self) {
-            let s = self.state.clone();
+            let s = self.state;
             for i in 0..4 {
-                let _ = &mut self.state[(i * 4)..(i * 4 + 4)].iter_mut().zip(0..4).map(|x| *x.0 = s[i * 4 + ((4 - i) + x.1) % 4]).collect::<Vec<_>>();
+                for (a, b) in zip(self.state[(i * 4)..(i * 4 + 4)].iter_mut(), 0..4) { *a = s[i * 4 + ((4 - i) + b) % 4]; }
             }
         }
 
         pub fn mat_gf_mul(&mut self, m: &[u8; 16]) {
-            let c = self.state.clone();
+            let c = self.state;
             for i in 0..4 {
                 for j in 0..4 {
                     let mut s: u8 = 0;
@@ -210,17 +211,20 @@ pub mod aes_rs {
         }
 
         fn do_xor(&mut self, last: &[u8; 16]) {
-            let _ = self.state.iter_mut().zip(last).map(|(a, b)| *a ^= b).collect::<Vec<_>>();
+            for (a, b) in zip(self.state.iter_mut(), last) { *a ^= b; }
         }
 
-        // fn disp(&self) {
-        //     println!("{:2x?}", self.state);
-        // }
+        fn disp(&self) {
+            println!("{:2x?}", self.state);
+        }
 
         async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
-            aes.state = source.clone();
-            if aes.mode == CBC { aes.do_xor(&last); }
+            aes.state = source;
+            if aes.mode == CBC {
+                aes.do_xor(&last);
+                // aes.disp();
+            }
             aes.reverse_axis();
             aes.add_round_key(0);
             for i in 1..10 {
@@ -233,14 +237,16 @@ pub mod aes_rs {
             aes.shift_rows();
             aes.add_round_key(10);
             aes.reverse_axis();
-            aes.state.clone()
+            aes.state
         }
 
         pub async fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
             self.extend_key();
             let mut last = [0 as u8; 16];
+            let mut batch = 0;
             if self.mode == CBC {
                 loop {
+                    batch += 1;
                     let source = match AES::read_source(reader) {
                         Some(s) => s,
                         None => break
@@ -263,7 +269,7 @@ pub mod aes_rs {
 
         async fn do_decode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
-            aes.state = source.clone();
+            aes.state = source;
             aes.reverse_axis();
             aes.add_round_key(10);
             aes.shift_rows_inv();
@@ -275,9 +281,9 @@ pub mod aes_rs {
                 aes.sub_bytes_inv();
             }
             aes.add_round_key(0);
-            if aes.mode == CBC { aes.do_xor(&last); }
             aes.reverse_axis();
-            aes.state.clone()
+            if aes.mode == CBC { aes.do_xor(&last); }
+            aes.state
         }
 
         pub async fn decode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
@@ -285,15 +291,17 @@ pub mod aes_rs {
             let mut last = [0 as u8; 16];
             let mut last2: [u8; 16];
             if self.mode == CBC {
+                let mut batch = 0;
                 loop {
+                    batch += 1;
                     let source = match AES::read_source(reader) {
                         Some(s) => s,
                         None => break
                     };
-                    self.state = source.clone();
-                    last2 = last.clone();
-                    last = source.clone();
-                    self.state = self.do_decode(source, last2.clone()).await;
+                    self.state = source;
+                    last2 = last;
+                    last = source;
+                    self.state = self.do_decode(source, last2).await;
                     writer.write_all(&self.state).unwrap();
                 }
             } else {

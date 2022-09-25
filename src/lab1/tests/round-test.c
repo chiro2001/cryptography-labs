@@ -10,7 +10,7 @@ int main(int argc, char *argv[]) {
   //     deAesFile(test->key);
   //   }
   // }
-  for (int k = MODE_ECB; k < MODE_CBC; k++) {
+  for (int k = MODE_CBC; k <= MODE_CBC; k++) {
     mode = k;
     for (int i = 0; i < 1; i++) {
       test = &test_set[i];
