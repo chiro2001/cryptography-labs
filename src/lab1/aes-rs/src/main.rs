@@ -1,5 +1,6 @@
 mod aes_rs;
 
+use std::error::Error;
 use std::fs::File;
 use futures::executor::block_on;
 use std::io;
@@ -42,7 +43,7 @@ pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mo
     if encode { aes.encode(reader, writer).await; } else { aes.decode(reader, writer).await; }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     CombinedLogger::init(vec![TermLogger::new(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Auto)]).unwrap();
     let args = Args::parse();
     if args.output != "stdout" { info!("args: {}", args); }
@@ -69,6 +70,7 @@ fn main() {
     } else {
         block_on(run(&mut reader, &mut writer, &args.key, mode, args.direction == "encode"));
     }
+    Ok(())
 }
 
 #[cfg(test)]

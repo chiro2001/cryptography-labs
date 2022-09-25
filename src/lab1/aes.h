@@ -63,7 +63,7 @@ test_t test_default = {
 test_t test_set[] = {
         {
                 .key = "securitysecurity",
-                .plain_text = "thisisatestclassthisisatestclassthisisatestclassthisisatestclass",
+                .plain_text = "thisisatestclass",
                 .save_file = "cryptography0.aes",
                 .auto_decode = 1,
                 .auto_exit = 1
@@ -682,8 +682,8 @@ void deAesFile(char *key) {
   char c[MAXLEN];  //密文字符串
   Log("当前解密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
   if (test->save_file == NULL) {
-    while (scanf("%s", fileName) != 1);
     printf("请输入要解密的文件名，该文件必须和本程序在同一个目录\n");
+    while (scanf("%s", fileName) != 1);
   } else {
     strcpy(fileName, test->save_file);
   }

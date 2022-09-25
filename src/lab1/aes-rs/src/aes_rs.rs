@@ -1,6 +1,4 @@
 pub mod aes_rs {
-    use ndarray::prelude::*;
-    use ndarray::{Array};
     use std::io::{Read, Write};
     use std::iter::zip;
     use futures::future::join_all;
@@ -177,15 +175,15 @@ pub mod aes_rs {
             let nk = 4;
             let nb = 4;
             let nr = 10;
-            let keys = Array::from(Vec::from(self.key))
-                .into_shape((4, self.key.len() / 4)).unwrap().map_axis(Axis(1), |x| {
-                ((x[[3]] as u32) << (0 * 8)) |
-                    ((x[[2]] as u32) << (1 * 8)) |
-                    ((x[[1]] as u32) << (2 * 8)) |
-                    ((x[[0]] as u32) << (3 * 8))
-            });
+            let keys = (0..4).map(|i| {
+                let x = &self.key;
+                ((x[3 + i * 4] as u32) << (0 * 8)) |
+                    ((x[2 + i * 4] as u32) << (1 * 8)) |
+                    ((x[1 + i * 4] as u32) << (2 * 8)) |
+                    ((x[0 + i * 4] as u32) << (3 * 8))
+            }).collect::<Vec<_>>();
             for i in 0..nk {
-                self.w[i] = keys[[i]];
+                self.w[i] = keys[i];
             }
             for i in nk..(nb * (nr + 1)) {
                 let temp =
@@ -221,10 +219,7 @@ pub mod aes_rs {
         async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
             aes.state = source;
-            if aes.mode == CBC {
-                aes.do_xor(&last);
-                // aes.disp();
-            }
+            if aes.mode == CBC { aes.do_xor(&last); }
             aes.reverse_axis();
             aes.add_round_key(0);
             for i in 1..10 {
@@ -243,10 +238,8 @@ pub mod aes_rs {
         pub async fn encode(&mut self, reader: &mut dyn Read, writer: &mut dyn Write) {
             self.extend_key();
             let mut last = [0 as u8; 16];
-            let mut batch = 0;
             if self.mode == CBC {
                 loop {
-                    batch += 1;
                     let source = match AES::read_source(reader) {
                         Some(s) => s,
                         None => break
@@ -291,9 +284,7 @@ pub mod aes_rs {
             let mut last = [0 as u8; 16];
             let mut last2: [u8; 16];
             if self.mode == CBC {
-                let mut batch = 0;
                 loop {
-                    batch += 1;
                     let source = match AES::read_source(reader) {
                         Some(s) => s,
                         None => break
