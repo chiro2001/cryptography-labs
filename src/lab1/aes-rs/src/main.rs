@@ -15,7 +15,7 @@ extern crate log;
 extern crate simplelog;
 
 #[derive(Debug, Parser)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author = "Chiro")]
 struct Args {
     #[clap(short, long, value_parser, default_value = "stdin", help = "Input filename")]
     input: String,
