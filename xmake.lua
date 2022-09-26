@@ -5,11 +5,11 @@ function string.contains(src, sub)
 end
 
 function getpathname(path)
-  return string.match(path, ".+/(.+)")
+  return string.match(path, ".+[\\/](.+)")
 end
 
 function getname(file)
-  return string.match(file, ".*/(.+)..+")
+  return string.match(file, ".*[\\/](.+)..+")
 end
 
 add_includedirs("$(projectdir)/src/include")
