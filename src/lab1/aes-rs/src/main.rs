@@ -5,7 +5,6 @@ use std::fs::File;
 use futures::executor::block_on;
 use std::io;
 use std::io::{Read, Write};
-use log::{info};
 use clap::Parser;
 use std::fmt::{Display, Formatter};
 use std::iter::zip;
@@ -46,7 +45,7 @@ pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mo
 fn main() -> Result<(), Box<dyn Error>> {
     CombinedLogger::init(vec![TermLogger::new(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Auto)]).unwrap();
     let args = Args::parse();
-    if args.output != "stdout" { info!("args: {}", args); }
+    if args.output != "stdout" { println!("args: {}", args); }
 
     let mut reader: Box<dyn Read> = match args.input.as_str() {
         "stdin" => Box::new(io::stdin()),
