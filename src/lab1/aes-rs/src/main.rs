@@ -8,12 +8,9 @@ use std::io::{Read, Write};
 use clap::Parser;
 use std::fmt::{Display, Formatter};
 use std::iter::zip;
-use simplelog::*;
 use crate::aes_rs::aes_rs::{AES, RunMode};
 
 extern crate lazy_static;
-extern crate log;
-extern crate simplelog;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -43,7 +40,6 @@ pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mo
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    CombinedLogger::init(vec![TermLogger::new(LevelFilter::Trace, Config::default(), TerminalMode::Mixed, ColorChoice::Auto)]).unwrap();
     let args = Args::parse();
     if args.output != "stdout" { println!("args: {}", args); }
 

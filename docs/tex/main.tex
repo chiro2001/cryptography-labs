@@ -1,0 +1,16 @@
+\documentclass[a4paper]{article}
+\usepackage{listings}
+\usepackage{hcr-cumcm}
+\usepackage{markdown}
+\usepackage{getenv}
+
+\getenv[\LAB]{LAB}
+\markdownSetup{fencedCode = true}
+\title{密码学实验-\LAB}
+
+\begin{document}
+    \pagestyle{plain}
+    \maketitle
+
+    \markdownInput{../\LAB/\LAB.md}
+\end{document}

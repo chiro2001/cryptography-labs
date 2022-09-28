@@ -487,6 +487,7 @@ void aes(char *p, int plen, char *key) {
   int keylen = strlen(key);
   int pArray[4][4] = {0};
   int k, i;
+  Log("当前加密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
   if (plen == 0 || plen % 16 != 0) {
     printf("明文字符长度必须为16的倍数！\n");
     exit(0);
@@ -528,7 +529,7 @@ void aes(char *p, int plen, char *key) {
 void deAes(char *c, int clen, char *key) {
   int cArray[4][4] = {0};
   int keylen, k, i;
-  Log("当前加密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
+  Log("当前解密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
   keylen = strlen(key);
   if (clen == 0 || clen % 16 != 0) {
     printf("密文字符长度必须为16的倍数！现在的长度为%d, %s\n", clen);
@@ -680,7 +681,6 @@ int readStrFromFile(char *fileName, char *str) {
 void deAesFile(char *key) {
   char fileName[64];
   char c[MAXLEN];  //密文字符串
-  Log("当前解密模式：%s", mode == MODE_ECB ? "ECB" : "CBC");
   if (test->save_file == NULL) {
     printf("请输入要解密的文件名，该文件必须和本程序在同一个目录\n");
     while (scanf("%s", fileName) != 1);
