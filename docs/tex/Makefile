@@ -15,11 +15,9 @@ endif
 
 all: $(PDF)
 
-# $(LATEX) $(NOPDF) $(ARGS) $(PAPER).tex
-
 $(PDF): $(REQUIRE) FORCE
-	-mkdir -p dist
 	$(LATEX) $(ARGS) $(PAPER).tex
+	cp $(PDF) ../$(LAB)/密码学实验-$(LAB).pdf
 
 clean:
 	-rm -rf $(TEMP)
