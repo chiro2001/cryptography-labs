@@ -1,1 +1,3 @@
-LAB := lab1
+ifndef LAB
+	LAB := lab1
+endif

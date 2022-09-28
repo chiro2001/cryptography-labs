@@ -27,7 +27,7 @@ docs:
 docs-%:
 	$(MAKE) -C docs $*
 
-clean:
+clean: docs-clean
 	-rm -rf $(BUILD_DIR)
 	-rm -rf .xmake
 

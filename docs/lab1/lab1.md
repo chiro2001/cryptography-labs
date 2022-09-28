@@ -211,4 +211,83 @@ w[40] = 0xa0ab5327 w[41] = 0xefe8b799 w[42] = 0x23a60f35 w[43] = 0x74f9a42c
 1. `lab1` ：原始 `lab1-aes.c` 的功能。
 2. `lab1-round-test`：依次测试 ECB、CBC 两个模式下三次加密的输出。`aes.h` 中的 `mode` 指示了当前的运行模式。
 
+在目录下运行 `xmake`，除了得到上面的二进制文件，还会得到 C 和 Rust 的主程序和单元测试。其中：
+
+1. `aes-rs` 是 Rust 实现的简化版本 AES 加密/解密程序，支持 ECB/CBC 模式。
+2. `lab1-stream-encode`、`lab1-stream-decode` 是上述 C 程序的管道模式封装。
+3. 更多见 `README.md`
+
+Rust 在 ECB 模式下使用了异步模式运行，不过运行效率并没有很大的提升。得益于 Rust 本身优秀的性能，加密/解密比较长的数据时，Rust 的速度约为本项目 C 代码的 10~20 倍。
+
+运行方式参考 `README.md`，下面是一些运行结果。
+
+```sh
+$ make clean
+make -C docs clean
+make[1]: 进入目录“/home/chiro/programs/cryptography-labs/docs”
+make -C tex clean LAB=lab1
+make[2]: 进入目录“/home/chiro/programs/cryptography-labs/docs/tex”
+rm -rf *.aux sections/*.aux *.log *.out *.toc *.xdv *.bbl *.blg *.bcf *.synctex.gz *.run.xml *.markdown.* *_markdown_* dist/
+make[2]: 离开目录“/home/chiro/programs/cryptography-labs/docs/tex”
+make[1]: 离开目录“/home/chiro/programs/cryptography-labs/docs”
+rm -rf build
+rm -rf .xmake
+➜ chiro@chiro-pc  ~/programs/cryptography-labs git:(master) ✗ xmake build
+checking for platform ... linux
+checking for architecture ... x86_64
+note: install or modify (m) these packages (pass -y to skip confirm)?
+in cargo:
+  -> cargo::aes latest [cargo_toml:"/home/chiro/programs/cryptography-labs/src/lab1/aes-rs/Cargo.toml"]
+please input: y (y/n/m)
+
+  => install cargo::aes latest .. ok
+[ 21%]: linking.release aes-rs
+[ 64%]: cache compiling.release src/lab1/tests/lang-test.c
+[ 64%]: cache compiling.release src/lab1/tests/stream-encode.c
+[ 64%]: cache compiling.release src/lab1/lab1-aes.c
+[ 64%]: cache compiling.release src/lab1/tests/stream-decode.c
+[ 64%]: cache compiling.release src/lab1/tests/round-test.c
+[ 64%]: cache compiling.release src/lab1/tests/function-test.c
+[ 76%]: linking.release lab1-lang-test
+[ 76%]: linking.release lab1-stream-decode
+[ 76%]: linking.release lab1-round-test
+[ 76%]: linking.release lab1-stream-encode
+[ 76%]: linking.release lab1-function-test
+[ 76%]: linking.release lab1
+[100%]: build ok!
+➜ chiro@chiro-pc  ~/programs/cryptography-labs git:(master) ✗ cd build/linux/x86_64/release 
+$ file aes-rs 
+aes-rs: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=47e761c2f4168bcc4afb6c1be6a2b8f7b3b86e5f, for GNU/Linux 4.4.0, with debug_info, not stripped
+$ time cat aes-rs | ./lab1-stream-encode 1145141919810aaa CBC > aes-rs-encoded
+cat aes-rs  0.00s user 0.49s system 5% cpu 8.380 total
+./lab1-stream-encode 1145141919810aaa CBC > aes-rs-encoded  8.20s user 0.26s system 99% cpu 8.469 total
+$ time cat aes-rs-encoded | ./lab1-stream-decode 1145141919810aaa CBC > aes-rs-decoded
+cat aes-rs-encoded  0.00s user 0.42s system 3% cpu 13.791 total
+./lab1-stream-decode 1145141919810aaa CBC > aes-rs-decoded  13.71s user 0.22s system 99% cpu 13.941 total
+$ file aes-rs-decoded
+aes-rs-decoded: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=47e761c2f4168bcc4afb6c1be6a2b8f7b3b86e5f, for GNU/Linux 4.4.0, with debug_info, not stripped
+$ time ./aes-rs -i aes-rs -o aes-rs-encoded-2
+args: input=aes-rs, output=aes-rs-encoded-2, direction=encode, mode=ECB, key=1145141919810aaa
+./aes-rs -i aes-rs -o aes-rs-encoded-2  0.76s user 0.45s system 99% cpu 1.210 total
+$ time ./aes-rs -i aes-rs-encoded-2 -o aes-rs-decoded-2 -d decode
+args: input=aes-rs-encoded-2, output=aes-rs-decoded-2, direction=decode, mode=ECB, key=1145141919810aaa
+./aes-rs -i aes-rs-encoded-2 -o aes-rs-decoded-2 -d decode  2.16s user 0.44s system 99% cpu 2.605 total
+$ file aes-rs-decoded-2
+aes-rs-decoded-2: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=47e761c2f4168bcc4afb6c1be6a2b8f7b3b86e5f, for GNU/Linux 4.4.0, with debug_info, not stripped
+$ ./aes-rs --help
+ 
+
+USAGE:
+    aes-rs [OPTIONS]
+
+OPTIONS:
+    -d, --direction <DIRECTION>    Decode or encode data [default: encode] [possible values: decode,
+                                   encode, both]
+    -h, --help                     Print help information
+    -i, --input <INPUT>            Input filename [default: stdin]
+    -k, --key <KEY>                Decode / encode key [default: 1145141919810aaa]
+    -m, --mode <MODE>              Run mode [default: ECB] [possible values: ECB, CBC]
+    -o, --output <OUTPUT>          Output filename [default: stdout]
+$ 
+```
 
