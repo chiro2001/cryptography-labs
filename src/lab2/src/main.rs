@@ -10,7 +10,7 @@ use std::str::FromStr;
 use clap::Parser;
 use num_bigint::BigInt;
 use crate::rsa::config::config::*;
-use crate::rsa::{generate_key, Key, process, RunMode};
+use crate::rsa::{check_key_set, generate_key, Key, process, RunMode};
 use crate::rsa::prime_gen::prime_gen;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -39,30 +39,45 @@ fn main() -> Result<(), Box<dyn Error>> {
         _ => Err(())
     }.unwrap();
 
-    match mode {
-        RunMode::Generate => {
-            let keys = generate_key()?;
-            println!("get keys: {:?}", keys);
-        }
-        RunMode::Encode | RunMode::Decode => {
-            process(&mut reader, &mut writer, mode, Key {
-                base: BigInt::from_str("1443457866423536847339250332650263408873996464973571486540133220728631678129").unwrap(),
-                m: BigInt::from_str("2053363943376975333926026436653596044954830140664527385358194472132153005680").unwrap(),
-            })
-        }
-    }
-    println!("Done");
+    let keys = generate_key()?;
+    check_key_set(&keys);
+    println!("get keys: {:?}", keys);
+    let (key_public, key_private) = (keys.public, keys.private);
+    let mut reader = File::open(&CONFIG.read().unwrap().input).unwrap();
+    let mut writer_temp = File::create(&CONFIG.read().unwrap().output).unwrap();
+    process(&mut reader, &mut writer_temp, RunMode::Encode, key_public);
+    let mut reader_temp = File::open(&CONFIG.read().unwrap().output).unwrap();
+    let mut writer = io::stdout();
+    process(&mut reader_temp, &mut writer, RunMode::Decode, key_private);
+    println!("\nDone.");
+
+    // match mode {
+    //     RunMode::Generate => {
+    //         let keys = generate_key()?;
+    //         println!("get keys: {:?}", keys);
+    //     }
+    //     RunMode::Encode | RunMode::Decode => {
+    //         process(&mut reader, &mut writer, mode, Key {
+    //             base: BigInt::from_str("1443457866423536847339250332650263408873996464973571486540133220728631678129").unwrap(),
+    //             m: BigInt::from_str("2053363943376975333926026436653596044954830140664527385358194472132153005680").unwrap(),
+    //         })
+    //     }
+    // }
+    // println!("Done");
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use std::error::Error;
+    use std::fs::File;
+    use std::io;
     use num::Integer;
-    use num_bigint::{ToBigInt, ToBigUint};
+    use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
     use num_traits::One;
-    use crate::{CONFIG, rsa};
+    use crate::{CONFIG, generate_key, process, rsa, RunMode};
     use crate::prime_gen::generate;
+    use crate::rsa::check_key_set;
     use crate::rsa::config::config;
     use crate::rsa::prime_gen::prime_gen;
     use crate::rsa::prime_gen::prime_gen::miller_rabin;
@@ -105,6 +120,30 @@ mod tests {
         let res = (&d * &e) % &f;
         println!("(d * e) % f = {} % {} = {}", &d * &e, f, res);
         assert!(res.is_one());
+        Ok(())
+    }
+
+    #[test]
+    fn test_from_bytes() {
+        let data = "114514".as_bytes();
+        let d = BigInt::from_bytes_le(Sign::Plus, data);
+        println!("{:?} => {:?}", data, d);
+    }
+
+    #[test]
+    fn function_test() -> Result<(), Box<dyn Error>> {
+        config::use_default()?;
+        let keys = generate_key()?;
+        check_key_set(&keys);
+        println!("get keys: {:?}", keys);
+        let (key_public, key_private) = (keys.public, keys.private);
+        let mut reader = File::open(&CONFIG.read().unwrap().input).unwrap();
+        let mut writer_temp = File::create(&CONFIG.read().unwrap().output).unwrap();
+        process(&mut reader, &mut writer_temp, RunMode::Encode, key_public);
+        let mut reader_temp = File::open(&CONFIG.read().unwrap().output).unwrap();
+        let mut writer = io::stdout();
+        process(&mut reader_temp, &mut writer, RunMode::Decode, key_private);
+        println!("\nDone.");
         Ok(())
     }
 }

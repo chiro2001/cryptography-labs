@@ -52,7 +52,8 @@ pub mod config {
         pub static ref CONFIG_DEF: Config = Config {
             prime_min: 14, prime_max: 128,
             input: String::from("data/lab2-Plaintext.txt"),
-            output: String::from("stdout"),
+            // output: String::from("stdout"),
+            output: String::from("data/data.tmp"),
             base64_out: true,
             base64_in: false,
             rounds: 10,

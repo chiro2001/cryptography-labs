@@ -60,6 +60,16 @@ pub fn generate_key() -> Result<KeySet, PrimeError> {
     Ok(KeySet { public: Key { m: f.clone(), base: e }, private: Key { m: f.clone(), base: d } })
 }
 
+pub fn check_key_set(keys: &KeySet) {
+    assert_eq!(keys.private.m, keys.public.m);
+    let f = keys.public.m.clone();
+    let e = keys.public.base.clone();
+    let d = keys.private.base.clone();
+    let res = (&d * &e) % &f;
+    println!("(d * e) % f = {} % {} = {}", &d * &e, f, res);
+    assert!(res.is_one());
+}
+
 fn read_source(reader: &mut dyn Read, bytes: usize) -> Vec<u8> {
     let mut source = [0 as u8; 1];
     let mut res = Vec::new();
@@ -85,10 +95,10 @@ pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key
     loop {
         let source = read_source(reader, group_size);
         if source.is_empty() { break; }
-        println!("source: {:?}", source);
-        let data = BigInt::from_bytes_le(Sign::NoSign, source.as_slice());
+        // println!("source: {:?}", source);
+        let data = BigInt::from_bytes_le(Sign::Plus, source.as_slice());
         let res = fast_modular_exponent(data.clone(), key.m.clone(), key.base.clone());
-        println!("{:?} -> {:?}", data, res);
+        // println!("{:?} -> {:?}", data, res);
         writer.write_all(res.to_bytes_le().1.as_slice()).unwrap();
     }
 }
