@@ -2,10 +2,10 @@ mod rsa;
 
 use std::error::Error;
 use clap::Parser;
-use crate::rsa::rsa::config::CONFIG;
+use crate::rsa::config::config::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let config = rsa::rsa::config::Config::parse();
+    let config = Config::parse();
     if !CONFIG.is_set().unwrap() {
         CONFIG.set(config)?;
     } else {
@@ -18,21 +18,21 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-    use crate::CONFIG;
-    use crate::rsa::*;
-    use crate::rsa::rsa::config::CONFIG_DEF;
+    use crate::rsa::config::config::*;
+    use crate::rsa::rsa::*;
 
     fn init() -> Result<(), Box<dyn Error>> {
         if !CONFIG.is_set().unwrap() {
             CONFIG.set(*CONFIG_DEF)?;
         }
+        println!("Use default config: {:?}", CONFIG.read()?.get());
         Ok(())
     }
 
     #[test]
     fn gen_prime() -> Result<(), Box<dyn Error>> {
         init()?;
-        let prime = rsa::prime_gen::generate();
+        let prime = prime_gen::generate();
         println!("got prime: {:?}", prime);
         Ok(())
     }
