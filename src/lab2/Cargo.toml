@@ -6,6 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.0.4", features = ["derive"] }
+lazy_static = "1.4.0"
+mut_static = "5.0.0"
 num = "0.4.0"
 num-bigint = { version = "0.4.3", features = ["rand"] }
+num-traits = "0.2.15"
 rand = "0.8.5"
