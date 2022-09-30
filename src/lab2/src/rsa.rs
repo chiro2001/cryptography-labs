@@ -4,7 +4,7 @@ pub mod rsa {
         use lazy_static::lazy_static;
         use mut_static::MutStatic;
 
-        #[derive(Debug, Parser)]
+        #[derive(Debug, Parser, Copy, Clone)]
         pub struct Config {
             #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_min, help = "Min prime bits")]
             pub prime_min: usize,
@@ -50,7 +50,7 @@ pub mod rsa {
         }
 
         pub fn generate() -> BigUint {
-            CONFIG.write().unwrap().deref_mut().prime_min = 1;
+            CONFIG.write().unwrap().prime_min = 1;
             println!("config now: {:?}", CONFIG.read().unwrap().as_ref());
             fib(3000)
         }
