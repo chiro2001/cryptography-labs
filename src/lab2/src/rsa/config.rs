@@ -17,6 +17,8 @@ pub mod config {
         pub base64_out: bool,
         #[clap(long, value_parser, default_value_t = CONFIG_DEF.base64_in, help = "Input in base64 format")]
         pub base64_in: bool,
+        #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.rounds, help = "Miller Rabin calculate rounds")]
+        pub rounds: u32,
     }
 
     impl Config {
@@ -30,7 +32,8 @@ pub mod config {
                 input: self.input.clone(),
                 output: self.output.clone(),
                 base64_out: self.base64_out,
-                base64_in: self.base64_in
+                base64_in: self.base64_in,
+                rounds: self.rounds,
             }
         }
         pub fn set(&mut self, other: Config) {
@@ -44,7 +47,8 @@ pub mod config {
                 input: String::from("data/lab2-Plaintext.txt"),
                 output: String::from("stdout"),
                 base64_out: true,
-                base64_in: false
+                base64_in: false,
+                rounds: 10,
             };
             pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
         }
