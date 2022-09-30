@@ -57,7 +57,8 @@ pub mod config {
             base64_in: false,
             rounds: 10,
             time_max: 10000,
-            mode: String::from("generate"),
+            // mode: String::from("generate"),
+            mode: String::from("encode"),
         };
         pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
     }

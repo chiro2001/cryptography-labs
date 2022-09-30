@@ -1,8 +1,9 @@
+use std::io::{Read, Write};
 use num::Integer;
-use num_bigint::{BigInt, ToBigInt, ToBigUint};
+use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
 use num_traits::{One, Zero};
 use crate::CONFIG;
-use crate::prime_gen::{generate, PrimeError};
+use crate::prime_gen::{fast_modular_exponent, generate, PrimeError};
 
 pub mod config;
 pub mod prime_gen;
@@ -57,4 +58,37 @@ pub fn generate_key() -> Result<KeySet, PrimeError> {
     }
     let d = mod_reverse(&e, &f);
     Ok(KeySet { public: Key { m: f.clone(), base: e }, private: Key { m: f.clone(), base: d } })
+}
+
+fn read_source(reader: &mut dyn Read, bytes: usize) -> Vec<u8> {
+    let mut source = [0 as u8; 1];
+    let mut res = Vec::new();
+    loop {
+        match reader.read(source.as_mut()) {
+            Ok(n) => match n {
+                0 => break,
+                _ => {
+                    res.push(source[0]);
+                    if res.len() >= bytes { break; }
+                }
+            },
+            _ => break
+        }
+    }
+    res
+}
+
+fn get_group_size(n: &BigInt) -> usize { n.bits() as usize }
+
+pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key: Key) {
+    let group_size = get_group_size(&key.m);
+    loop {
+        let source = read_source(reader, group_size);
+        if source.is_empty() { break; }
+        println!("source: {:?}", source);
+        let data = BigInt::from_bytes_le(Sign::NoSign, source.as_slice());
+        let res = fast_modular_exponent(data.clone(), key.m.clone(), key.base.clone());
+        println!("{:?} -> {:?}", data, res);
+        writer.write_all(res.to_bytes_le().1.as_slice()).unwrap();
+    }
 }
