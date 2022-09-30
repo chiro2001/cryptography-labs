@@ -19,6 +19,8 @@ pub mod config {
         pub base64_in: bool,
         #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.rounds, help = "Miller Rabin calculate rounds")]
         pub rounds: u32,
+        #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.time_max, help = "Max time in mill seconds that trying to generate a prime")]
+        pub time_max: u32,
     }
 
     impl Config {
@@ -34,6 +36,7 @@ pub mod config {
                 base64_out: self.base64_out,
                 base64_in: self.base64_in,
                 rounds: self.rounds,
+                time_max: self.time_max
             }
         }
         pub fn set(&mut self, other: Config) {
@@ -49,6 +52,7 @@ pub mod config {
                 base64_out: true,
                 base64_in: false,
                 rounds: 10,
+                time_max: 5000
             };
             pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
         }

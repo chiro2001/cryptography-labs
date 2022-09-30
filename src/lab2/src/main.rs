@@ -17,7 +17,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Borrow;
     use std::error::Error;
     use num_bigint::ToBigUint;
     use crate::rsa::config::config::*;
@@ -35,7 +34,7 @@ mod tests {
     #[test]
     fn gen_prime() -> Result<(), Box<dyn Error>> {
         init()?;
-        let prime = prime_gen::generate();
+        let prime = prime_gen::generate().unwrap();
         println!("got prime: {:?}", prime);
         Ok(())
     }
@@ -44,7 +43,7 @@ mod tests {
     fn test_miller_rabin() -> Result<(), Box<dyn Error>> {
         init()?;
         let res = (0xfffffff0 as u32..0xffffffff as u32)
-            .map(|x| (x, miller_rabin(x.to_biguint().unwrap()).unwrap()))
+            .map(|x| (x, miller_rabin(&x.to_biguint().unwrap()).unwrap()))
             .filter(|x| x.1)
             .collect::<Vec<_>>();
         println!("result: {:?}", res);
