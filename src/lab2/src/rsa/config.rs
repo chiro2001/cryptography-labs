@@ -1,4 +1,5 @@
 pub mod config {
+    use std::error::Error;
     use clap::Parser;
     use lazy_static::lazy_static;
     use mut_static::MutStatic;
@@ -45,15 +46,23 @@ pub mod config {
     }
 
     lazy_static! {
-            pub static ref CONFIG_DEF: Config = Config {
-                prime_min: 14, prime_max: 1024,
-                input: String::from("data/lab2-Plaintext.txt"),
-                output: String::from("stdout"),
-                base64_out: true,
-                base64_in: false,
-                rounds: 10,
-                time_max: 5000
-            };
-            pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
+        pub static ref CONFIG_DEF: Config = Config {
+            prime_min: 14, prime_max: 1024,
+            input: String::from("data/lab2-Plaintext.txt"),
+            output: String::from("stdout"),
+            base64_out: true,
+            base64_in: false,
+            rounds: 10,
+            time_max: 5000
+        };
+        pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
+    }
+
+    pub fn use_default() -> Result<(), Box<dyn Error>> {
+        if !CONFIG.is_set().unwrap() {
+            CONFIG.set(CONFIG_DEF.copy())?;
         }
+        println!("Use default config: {:?}", CONFIG.read()?.get());
+        Ok(())
+    }
 }

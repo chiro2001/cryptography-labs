@@ -3,6 +3,7 @@ mod rsa;
 use std::error::Error;
 use clap::Parser;
 use crate::rsa::config::config::*;
+use crate::rsa::prime_gen::prime_gen;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let config = Config::parse();
@@ -12,6 +13,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         CONFIG.write()?.set(config);
     }
     println!("Run with CONFIG: {:?}", CONFIG.read().as_ref().unwrap().as_ref());
+    let prime = prime_gen::generate().unwrap();
+    println!("got prime: {:?}", prime);
     Ok(())
 }
 
@@ -19,21 +22,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 mod tests {
     use std::error::Error;
     use num_bigint::ToBigUint;
-    use crate::rsa::config::config::*;
-    use crate::rsa::rsa::*;
-    use crate::rsa::rsa::prime_gen::miller_rabin;
-
-    fn init() -> Result<(), Box<dyn Error>> {
-        if !CONFIG.is_set().unwrap() {
-            CONFIG.set(CONFIG_DEF.copy())?;
-        }
-        println!("Use default config: {:?}", CONFIG.read()?.get());
-        Ok(())
-    }
+    use crate::rsa;
+    use crate::rsa::config::config;
+    use crate::rsa::prime_gen::prime_gen;
+    use crate::rsa::prime_gen::prime_gen::miller_rabin;
 
     #[test]
     fn gen_prime() -> Result<(), Box<dyn Error>> {
-        init()?;
+        config::use_default()?;
         let prime = prime_gen::generate().unwrap();
         println!("got prime: {:?}", prime);
         Ok(())
@@ -41,7 +37,7 @@ mod tests {
 
     #[test]
     fn test_miller_rabin() -> Result<(), Box<dyn Error>> {
-        init()?;
+        config::use_default()?;
         let res = (0xfffffff0 as u32..0xffffffff as u32)
             .map(|x| (x, miller_rabin(&x.to_biguint().unwrap()).unwrap()))
             .filter(|x| x.1)
