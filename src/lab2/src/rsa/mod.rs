@@ -19,7 +19,7 @@ pub struct KeySet {
     pub private: Key,
 }
 
-fn euler(p: &BigInt, q: &BigInt) -> BigInt { (p - 1.to_bigint().unwrap()) * (q - 1.to_bigint().unwrap()) }
+pub fn euler(p: &BigInt, q: &BigInt) -> BigInt { (p - 1.to_bigint().unwrap()) * (q - 1.to_bigint().unwrap()) }
 
 // fn extended_euclid(a: &BigInt, b: &BigInt) -> BigInt {
 //     // if b >= a { return extended_euclid(b, a); }
@@ -47,29 +47,47 @@ fn euler(p: &BigInt, q: &BigInt) -> BigInt { (p - 1.to_bigint().unwrap()) * (q -
 //
 // }
 
-// fn extended_euclid(a: &BigInt, b: &BigInt, x: &BigInt, y: &BigInt) -> (BigInt, BigInt, BigInt) {
-//     println!("extended_euclid({}, {}, {}, {})", a, b, x, y);
-//     if b.is_zero() {
-//         return (a.clone(), 1.to_bigint().unwrap(), 0.to_bigint().unwrap());
+fn extended_euclid(a: &BigInt, b: &BigInt, x: &BigInt, y: &BigInt) -> (BigInt, BigInt, BigInt) {
+    println!("extended_euclid({}, {}, {}, {})", a, b, x, y);
+    if b.is_zero() {
+        return (a.clone(), 1.to_bigint().unwrap(), 0.to_bigint().unwrap());
+    }
+    let (d, x2, y2) = extended_euclid(b, &(a % b), y, x);
+    println!("extended_euclid({}, {}, {}, {}): d={}, x={}, y={}", b, &(a % b), y, x, d, x2, y2);
+    return (d, y2.clone(), x2 - a / b * &y2);
+}
+
+// fn extended_euclid(a: &BigInt, b: &BigInt) -> (BigInt, BigInt, BigInt) {
+//     if b.is_zero() { return (1.to_bigint().unwrap(), 0.to_bigint().unwrap(), a.clone()); }
+//     let (mut s0, mut s) = (1.to_bigint().unwrap(), 0.to_bigint().unwrap());
+//     let (mut t0, mut t) = (0.to_bigint().unwrap(), 1.to_bigint().unwrap());
+//     let (mut r0, mut r) = (a.clone(), b.clone());
+//     while !r.is_zero() {
+//         let q = &r0 / &r;
+//         let (t1, t2, t3) = (r0.clone(), s0.clone(), t0.clone());
+//         r0 = r.clone(); r = t1 - &q * r;
+//         s0 = s.clone(); s = t2 - &q * s;
+//         t0 = t.clone(); t = t3 - &q * t;
 //     }
-//     let (d, x2, y2) = extended_euclid(b, &(a % b), y, x);
-//     println!("extended_euclid({}, {}, {}, {}): d={}, x={}, y={}", b, &(a % b), y, x, d, x2, y2);
-//     return (d, x2.clone(), y2 - a / b * &x2);
+//     (s0, t0, r0)
 // }
 
-fn extended_euclid(a: &BigInt, b: &BigInt) -> (BigInt, BigInt, BigInt) {
-    if b.is_zero() { return (1.to_bigint().unwrap(), 0.to_bigint().unwrap(), a.clone()); }
-    let (mut s0, mut s) = (1.to_bigint().unwrap(), 0.to_bigint().unwrap());
-    let (mut t0, mut t) = (0.to_bigint().unwrap(), 1.to_bigint().unwrap());
-    let (mut r0, mut r) = (a.clone(), b.clone());
-    while !r.is_zero() {
-        let q = &r0 / &r;
-        let (t1, t2, t3) = (r0.clone(), s0.clone(), t0.clone());
-        r0 = r.clone(); r = t1 - &q * r;
-        s0 = s.clone(); s = t2 - &q * s;
-        t0 = t.clone(); t = t3 - &q * t;
+// fn extended_euclid(a: &BigInt, b: &BigInt) -> (BigInt, BigInt) {
+//     if b.is_zero() {
+//         return (1.to_bigint().unwrap(), 0.to_bigint().unwrap());
+//     }
+//     let (x, y) = extended_euclid(b, &a.mod_floor(b));
+//     println!("extended_euclid({}, {}) -> ({}, {})", b, &a.mod_floor(b), x, y);
+//     (y.clone(), x - (a / b) * &y)
+// }
+
+pub fn mod_reverse(a: &BigInt, b: &BigInt) -> BigInt {
+    let d = extended_euclid(a, b, &Zero::zero(), &One::one());
+    if d.0.is_one() {
+        (d.1 % b + b) % b
+    } else {
+        Zero::zero()
     }
-    (s0, t0, r0)
 }
 
 pub fn generate_key() -> Result<KeySet, PrimeError> {
@@ -84,10 +102,14 @@ pub fn generate_key() -> Result<KeySet, PrimeError> {
         if f.gcd(&e).is_one() { break; }
     }
     // let d = extended_euclid(&e, &f, &Zero::zero(), &One::one());
-    let d = extended_euclid(&e, &f);
+    // let d = extended_euclid(&e, &f);
+    let d = mod_reverse(&e, &f);
+    println!("ret: {:?}", d);
     // println!("f - (e*d) = {}", &f - (&e * &d));
-    println!("e*x = {}, b*y = {}", &e * &d.1, &f * &d.2);
-    println!("d - (e*x + b*y) = {}", &d.0 - (&e * &d.1 + &f * &d.2));
+
+    // println!("e*x = {}, b*y = {}", &e * &d.1, &f * &d.2);
+    // println!("d - (e*x + b*y) = {}", &d.0 - (&e * &d.1 + &f * &d.2));
+
     // println!("e*d == 1 mod eu: {} * {} == 1 mod {}", e, d, f);
-    Ok(KeySet { public: Key { m: f.clone(), base: e }, private: Key { m: f.clone(), base: d.0 } })
+    Ok(KeySet { public: Key { m: f.clone(), base: e }, private: Key { m: f.clone(), base: d } })
 }
