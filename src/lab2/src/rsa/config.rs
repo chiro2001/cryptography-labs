@@ -22,6 +22,8 @@ pub mod config {
         pub rounds: u32,
         #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.time_max, help = "Max time in mill seconds that trying to generate a prime")]
         pub time_max: u32,
+        #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode"])]
+        pub mode: String,
     }
 
     impl Config {
@@ -37,7 +39,8 @@ pub mod config {
                 base64_out: self.base64_out,
                 base64_in: self.base64_in,
                 rounds: self.rounds,
-                time_max: self.time_max
+                time_max: self.time_max,
+                mode: self.mode.clone(),
             }
         }
         pub fn set(&mut self, other: Config) {
@@ -53,7 +56,8 @@ pub mod config {
             base64_out: true,
             base64_in: false,
             rounds: 10,
-            time_max: 10000
+            time_max: 10000,
+            mode: String::from("generate"),
         };
         pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
     }

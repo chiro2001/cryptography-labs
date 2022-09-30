@@ -1,26 +1,52 @@
 mod rsa;
 
 use std::error::Error;
+use std::fs::File;
+use std::io;
+use std::io::{Read, Write};
 use clap::Parser;
-use num_bigint::ToBigUint;
 use crate::rsa::config::config::*;
-use crate::rsa::generate_key;
+use crate::rsa::{generate_key, RunMode};
 use crate::rsa::prime_gen::prime_gen;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let config = Config::parse();
+    let args = Config::parse();
     if !CONFIG.is_set().unwrap() {
-        CONFIG.set(config)?;
+        CONFIG.set(args)?;
     } else {
-        CONFIG.write()?.set(config);
+        CONFIG.write()?.set(args);
     }
     println!("Run with CONFIG: {:?}", CONFIG.read().as_ref().unwrap().as_ref());
-    // let low = 2.to_bigint().unwrap().pow(CONFIG.read().unwrap().prime_min);
-    // let high = 2.to_bigint().unwrap().pow(CONFIG.read().unwrap().prime_max);
-    // let prime = prime_gen::generate(&low, &high).unwrap();
-    // println!("got prime: {:?}", prime);
-    let keys = generate_key()?;
-    println!("get keys: {:?}", keys);
+
+    let args: Config = CONFIG.read().unwrap().copy();
+
+    let mut reader: Box<dyn Read> = match args.input.as_str() {
+        "stdin" => Box::new(io::stdin()),
+        f => Box::new(File::open(f).unwrap())
+    };
+    let mut writer: Box<dyn Write> = match args.output.as_str() {
+        "stdout" => Box::new(io::stdout()),
+        f => Box::new(File::create(f).unwrap())
+    };
+    let mode = match args.mode.as_str() {
+        "encode" => Ok(RunMode::Encode),
+        "decode" => Ok(RunMode::Decode),
+        "generate" => Ok(RunMode::Generate),
+        _ => Err(())
+    }.unwrap();
+
+    match mode {
+        RunMode::Generate => {
+            let keys = generate_key()?;
+            println!("get keys: {:?}", keys);
+        }
+        RunMode::Encode => {
+
+        }
+        RunMode::Decode => {
+
+        }
+    }
     Ok(())
 }
 

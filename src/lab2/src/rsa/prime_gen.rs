@@ -2,7 +2,7 @@ pub mod prime_gen {
     use std::error::Error;
     use std::fmt::{Debug, Display, Formatter};
     use chrono::Local;
-    use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt, ToBigUint};
+    use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
     use num_traits::*;
     use crate::rsa::config::config::*;
     use crate::rsa::prime_gen::prime_gen::PrimeError::Timeout;

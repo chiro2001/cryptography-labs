@@ -19,6 +19,13 @@ pub struct KeySet {
     pub private: Key,
 }
 
+#[derive(Debug)]
+pub enum RunMode {
+    Generate,
+    Encode,
+    Decode,
+}
+
 pub fn euler(p: &BigInt, q: &BigInt) -> BigInt { (p - 1.to_bigint().unwrap()) * (q - 1.to_bigint().unwrap()) }
 
 fn extended_euclid(a: &BigInt, b: &BigInt, x: &BigInt, y: &BigInt) -> (BigInt, BigInt, BigInt) {
