@@ -23,7 +23,7 @@ mod tests {
 
     fn init() -> Result<(), Box<dyn Error>> {
         if !CONFIG.is_set().unwrap() {
-            CONFIG.set(*CONFIG_DEF)?;
+            CONFIG.set(CONFIG_DEF.copy())?;
         }
         println!("Use default config: {:?}", CONFIG.read()?.get());
         Ok(())

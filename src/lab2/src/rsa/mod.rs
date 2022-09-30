@@ -6,7 +6,6 @@ pub mod rsa {
         use num_traits::*;
         use crate::rsa::config::config::*;
 
-        // use crate::rsa::rsa::config::{CONFIG, Config};
         pub fn generate() -> BigUint {
             let mut rng = rand::thread_rng();
             let low = 2.to_biguint().unwrap().pow(CONFIG.read().unwrap().prime_min);
