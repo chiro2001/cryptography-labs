@@ -9,6 +9,7 @@ use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
 use num_traits::{One, Pow, Zero};
 use prime_gen::PrimeError;
 use crate::rsa::config::CONFIG_DEF;
+use crate::rsa::keys::{Key, KeySet};
 
 pub mod config;
 pub mod prime_gen;
