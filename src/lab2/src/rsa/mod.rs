@@ -209,6 +209,11 @@ impl RSA {
             RunMode::Test => {
                 let key_pair = KeyPair::from(self.key.clone());
                 if !self.silent { println!("get key_pair: {:?}", key_pair); }
+                let m = BigInt::from(88);
+                let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
+                let m2 = RSA::fast_modular_exponent(c.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
+                assert_eq!(m, m2);
+                if !self.silent { println!("Test pass"); };
             }
             RunMode::Encode | RunMode::Decode => {
                 let mut reader = self.reader();
