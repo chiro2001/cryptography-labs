@@ -40,7 +40,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     }.unwrap();
 
     let keys = generate_key()?;
-    check_key_set(&keys);
     println!("get keys: {:?}", keys);
     let (key_public, key_private) = (keys.public, keys.private);
     let mut reader = File::open(&CONFIG.read().unwrap().input).unwrap();
@@ -75,9 +74,9 @@ mod tests {
     use num::Integer;
     use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
     use num_traits::One;
-    use crate::{CONFIG, generate_key, process, rsa, RunMode};
-    use crate::prime_gen::generate;
-    use crate::rsa::check_key_set;
+    use crate::{CONFIG, generate_key, Key, process, rsa, RunMode};
+    use crate::prime_gen::{fast_modular_exponent, generate};
+    use crate::rsa::{check_key_set, KeySet, mod_reverse};
     use crate::rsa::config::config;
     use crate::rsa::prime_gen::prime_gen;
     use crate::rsa::prime_gen::prime_gen::miller_rabin;
@@ -134,7 +133,6 @@ mod tests {
     fn function_test() -> Result<(), Box<dyn Error>> {
         config::use_default()?;
         let keys = generate_key()?;
-        check_key_set(&keys);
         println!("get keys: {:?}", keys);
         let (key_public, key_private) = (keys.public, keys.private);
         let mut reader = File::open(&CONFIG.read().unwrap().input).unwrap();
@@ -144,6 +142,23 @@ mod tests {
         let mut writer = io::stdout();
         process(&mut reader_temp, &mut writer, RunMode::Decode, key_private);
         println!("\nDone.");
+        Ok(())
+    }
+
+    #[test]
+    fn test_simple_data() -> Result<(), Box<dyn Error>> {
+        let (p, q) = (17.to_bigint().unwrap(), 11.to_bigint().unwrap());
+        let f = (&q - 1.to_bigint().unwrap()) * (&p - 1.to_bigint().unwrap());
+        let e = 7.to_bigint().unwrap();
+        let d = mod_reverse(&e, &f);
+        let n = &p * &q;
+        check_key_set(&d, &e, &f);
+        let keys = KeySet { public: Key { m: n.clone(), base: e }, private: Key { m: n.clone(), base: d } };
+        println!("keys: {:?}", keys);
+        let m = BigInt::from(88);
+        let c = fast_modular_exponent(m.clone(), keys.public.base, keys.public.m);
+        let m2 = fast_modular_exponent(c.clone(), keys.private.base, keys.private.m);
+        println!("m={}, c={}, m2={}", m ,c ,m2);
         Ok(())
     }
 }
