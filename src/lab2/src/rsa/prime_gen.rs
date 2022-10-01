@@ -83,7 +83,9 @@ pub mod prime_gen {
                 if miller_rabin(&test).unwrap() {
                     let now = Local::now().timestamp_millis();
                     let time = now - start;
-                    println!("Done generation in {} tries after {} ms", try_times, time);
+                    if !CONFIG.read().unwrap().silent {
+                        println!("Done generation in {} tries after {} ms", try_times, time);
+                    }
                     return Ok(test);
                 }
             }
@@ -91,7 +93,9 @@ pub mod prime_gen {
             let time = now - start;
             // assert!(time <= CONFIG.read().unwrap().time_max as i64);
             if time > CONFIG.read().unwrap().time_max as i64 {
-                println!("Failed generation in {} tries after {} ms", try_times, time);
+                if !CONFIG.read().unwrap().silent {
+                    println!("Failed generation in {} tries after {} ms", try_times, time);
+                }
                 return Err(PrimeError::Timeout(time as u32));
             }
         }

@@ -24,6 +24,12 @@ pub mod config {
         pub time_max: u32,
         #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode"])]
         pub mode: String,
+        #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.silent, help = "Run in silence mode, disable log output")]
+        pub silent: bool,
+        #[clap(long, value_parser, default_value = CONFIG_DEF.key_public.as_str(), help = "Public key file")]
+        pub key_public: String,
+        #[clap(long, value_parser, default_value = CONFIG_DEF.key_private.as_str(), help = "Private key file")]
+        pub key_private: String,
     }
 
     impl Config {
@@ -41,6 +47,9 @@ pub mod config {
                 rounds: self.rounds,
                 time_max: self.time_max,
                 mode: self.mode.clone(),
+                silent: self.silent,
+                key_public: self.key_public.clone(),
+                key_private: self.key_private.clone()
             }
         }
         pub fn set(&mut self, other: Config) {
@@ -58,8 +67,10 @@ pub mod config {
             base64_in: false,
             rounds: 10,
             time_max: 10000,
-            // mode: String::from("generate"),
-            mode: String::from("encode"),
+            mode: String::from("generate"),
+            silent: false,
+            key_public: String::from("~/.ssh/id_rsa.pub"),
+            key_private: String::from("~/.ssh/id_rsa"),
         };
         pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
     }

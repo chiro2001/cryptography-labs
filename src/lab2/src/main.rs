@@ -29,7 +29,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         f => Box::new(File::open(f).unwrap())
     };
     let mut writer: Box<dyn Write> = match args.output.as_str() {
-        "stdout" => Box::new(io::stdout()),
+        "stdout" => {
+            CONFIG.write().unwrap().silent = true;
+            Box::new(io::stdout())
+        }
         f => Box::new(File::create(f).unwrap())
     };
     let mode = match args.mode.as_str() {
@@ -40,28 +43,22 @@ fn main() -> Result<(), Box<dyn Error>> {
     }.unwrap();
 
     let keys = generate_key()?;
-    println!("get keys: {:?}", keys);
-    let (key_public, key_private) = (keys.public, keys.private);
-    let mut reader = File::open(&CONFIG.read().unwrap().input).unwrap();
-    let mut writer_temp = File::create(&CONFIG.read().unwrap().output).unwrap();
-    process(&mut reader, &mut writer_temp, RunMode::Encode, key_public);
-    let mut reader_temp = File::open(&CONFIG.read().unwrap().output).unwrap();
-    let mut writer = io::stdout();
-    process(&mut reader_temp, &mut writer, RunMode::Decode, key_private);
-    println!("\nDone.");
+    if !CONFIG.read().unwrap().silent {
+        println!("get keys: {:?}", keys);
+    }
 
-    // match mode {
-    //     RunMode::Generate => {
-    //         let keys = generate_key()?;
-    //         println!("get keys: {:?}", keys);
-    //     }
-    //     RunMode::Encode | RunMode::Decode => {
-    //         process(&mut reader, &mut writer, mode, Key {
-    //             base: BigInt::from_str("1443457866423536847339250332650263408873996464973571486540133220728631678129").unwrap(),
-    //             m: BigInt::from_str("2053363943376975333926026436653596044954830140664527385358194472132153005680").unwrap(),
-    //         })
-    //     }
-    // }
+    match mode {
+        RunMode::Generate => {
+            let keys = generate_key()?;
+            println!("get keys: {:?}", keys);
+        }
+        RunMode::Encode | RunMode::Decode => {
+            process(&mut reader, &mut writer, mode, Key {
+                base: BigInt::from_str("1443457866423536847339250332650263408873996464973571486540133220728631678129").unwrap(),
+                m: BigInt::from_str("2053363943376975333926026436653596044954830140664527385358194472132153005680").unwrap(),
+            })
+        }
+    }
     // println!("Done");
     Ok(())
 }
@@ -158,7 +155,7 @@ mod tests {
         let m = BigInt::from(88);
         let c = fast_modular_exponent(m.clone(), keys.public.base, keys.public.m);
         let m2 = fast_modular_exponent(c.clone(), keys.private.base, keys.private.m);
-        println!("m={}, c={}, m2={}", m ,c ,m2);
+        println!("m={}, c={}, m2={}", m, c, m2);
         Ok(())
     }
 

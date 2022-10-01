@@ -64,7 +64,9 @@ pub fn generate_key() -> Result<KeySet, PrimeError> {
 
 pub fn check_key_set(d: &BigInt, e: &BigInt, f: &BigInt) {
     let res = (d * e) % f;
-    println!("(d * e) % f = {} % {} = {}", d * e, f, res);
+    if !CONFIG.read().unwrap().silent {
+        println!("(d * e) % f = {} % {} = {}", d * e, f, res);
+    }
     assert!(res.is_one());
 }
 
@@ -93,7 +95,6 @@ pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key
         RunMode::Decode => 2,
         _ => 1
     };
-    println!("group_size = {}", group_size);
     loop {
         let source = read_source(reader, group_size);
         if source.is_empty() { break; }
@@ -105,12 +106,6 @@ pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key
             RunMode::Encode => for _ in 0..(group_size * 2 - res_data_len) { res_data.push(0); }
             _ => {}
         };
-        // println!("\nsource size: {:?}, res size: {:?} | {:?} | {:?}", source.len(), res.bits(), res_data_len, res_data.len());
-        // match mode {
-        //     RunMode::Encode => println!("C = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
-        //     RunMode::Decode => println!("M = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
-        //     _ => {}
-        // }
         writer.write_all(res_data.as_slice()).unwrap();
     }
 }
