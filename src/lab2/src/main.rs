@@ -161,4 +161,20 @@ mod tests {
         println!("m={}, c={}, m2={}", m ,c ,m2);
         Ok(())
     }
+
+    #[test]
+    fn test_vec_push() {
+        let mut v = vec![1, 2, 3, 4];
+        v.push(0);
+        v.append(&mut vec![5]);
+        println!("v={:?}", v);
+    }
+
+    #[test]
+    fn test_num_bits() {
+        let n = BigInt::from(0x11234567855aai64);
+        let l = n.to_bytes_le().1;
+        let b = n.to_bytes_be().1;
+        println!("n: {}, b: {:x?}, l: {:x?}", n, b, l);
+    }
 }

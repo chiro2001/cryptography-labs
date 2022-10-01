@@ -93,10 +93,6 @@ pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key
         RunMode::Decode => 2,
         _ => 1
     };
-    // let group_size = match mode {
-    //     RunMode::Decode => 32,
-    //     _ => 16
-    // };
     println!("group_size = {}", group_size);
     loop {
         let source = read_source(reader, group_size);
@@ -105,14 +101,16 @@ pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key
         let res = fast_modular_exponent(data.clone(), key.base.clone(), key.m.clone());
         let mut res_data = res.to_bytes_le().1.clone();
         let res_data_len = res_data.len();
-        // for _ in res_data_len..group_size { res_data.push(0); }
-        println!("\nsource size: {:?}, res size: {:?} | {:?}", source.len(), res.bits(), res.to_bytes_le().1.len());
         match mode {
-            RunMode::Encode => println!("C = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
-            RunMode::Decode => println!("M = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
+            RunMode::Encode => for _ in 0..(group_size * 2 - res_data_len) { res_data.push(0); }
             _ => {}
-        }
-        // println!("{:?} -> {:?}", data, res);
-        writer.write_all(res.to_bytes_le().1.as_slice()).unwrap();
+        };
+        // println!("\nsource size: {:?}, res size: {:?} | {:?} | {:?}", source.len(), res.bits(), res_data_len, res_data.len());
+        // match mode {
+        //     RunMode::Encode => println!("C = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
+        //     RunMode::Decode => println!("M = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
+        //     _ => {}
+        // }
+        writer.write_all(res_data.as_slice()).unwrap();
     }
 }

@@ -50,7 +50,7 @@ pub mod config {
 
     lazy_static! {
         pub static ref CONFIG_DEF: Config = Config {
-            prime_min: 14, prime_max: 128,
+            prime_min: 14, prime_max: 512,
             input: String::from("data/lab2-Plaintext.txt"),
             // output: String::from("stdout"),
             output: String::from("data/data.tmp"),
