@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use num::Integer;
 use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
-use num_traits::{One, Zero};
+use num_traits::{One, Pow, Zero};
 use crate::CONFIG;
 use crate::prime_gen::{fast_modular_exponent, generate, PrimeError};
 
@@ -86,24 +86,27 @@ fn read_source(reader: &mut dyn Read, bytes: usize) -> Vec<u8> {
     res
 }
 
-fn get_group_size_byte(n: &BigInt) -> usize { n.bits() as usize / 2 / 8 }
+fn get_group_size_byte(n: &BigInt) -> usize { f64::pow(2 as f64, ((n.bits() as usize / 8) as f64).log2().ceil()) as usize / 2 }
 
 pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key: Key) {
     let group_size = get_group_size_byte(&key.m) * match mode {
         RunMode::Decode => 2,
         _ => 1
     };
-    let group_size = match mode {
-        RunMode::Decode => 32,
-        _ => 16
-    };
+    // let group_size = match mode {
+    //     RunMode::Decode => 32,
+    //     _ => 16
+    // };
     println!("group_size = {}", group_size);
     loop {
         let source = read_source(reader, group_size);
         if source.is_empty() { break; }
         let data = BigInt::from_bytes_le(Sign::Plus, source.as_slice());
         let res = fast_modular_exponent(data.clone(), key.base.clone(), key.m.clone());
-        println!("source size: {:?}, res size: {:?} | {:?}", source.len(), res.bits(), res.to_bytes_le().1.len());
+        let mut res_data = res.to_bytes_le().1.clone();
+        let res_data_len = res_data.len();
+        // for _ in res_data_len..group_size { res_data.push(0); }
+        println!("\nsource size: {:?}, res size: {:?} | {:?}", source.len(), res.bits(), res.to_bytes_le().1.len());
         match mode {
             RunMode::Encode => println!("C = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
             RunMode::Decode => println!("M = ({:?} ^ {:?}) % {:?} = {:?}", data, key.base, key.m, res),
