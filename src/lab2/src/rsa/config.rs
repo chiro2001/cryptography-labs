@@ -30,6 +30,8 @@ pub mod config {
         pub key_public: String,
         #[clap(long, value_parser, default_value = CONFIG_DEF.key_private.as_str(), help = "Private key file")]
         pub key_private: String,
+        #[clap(long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Generate primes using <THREADS> threads")]
+        pub threads: usize,
     }
 
     impl Config {
@@ -49,7 +51,8 @@ pub mod config {
                 mode: self.mode.clone(),
                 silent: self.silent,
                 key_public: self.key_public.clone(),
-                key_private: self.key_private.clone()
+                key_private: self.key_private.clone(),
+                threads: self.threads,
             }
         }
         pub fn set(&mut self, other: Config) {
@@ -71,6 +74,7 @@ pub mod config {
             silent: false,
             key_public: String::from("~/.ssh/id_rsa.pub"),
             key_private: String::from("~/.ssh/id_rsa"),
+            threads: 4
         };
         pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
     }
