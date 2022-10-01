@@ -2,7 +2,8 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, Cursor, Read, Seek, SeekFrom};
 use num_bigint::{BigInt, Sign};
-use crate::rsa::keys::{Key, KEY_PUBLIC, KeyError, KeyTypeName};
+use crate::rsa::keys::{KeyError, KeyTypeName, Key};
+use crate::rsa::keys::key_data::KeyData;
 
 struct KeyReader {
     reader: Box<dyn Read>,
@@ -11,6 +12,8 @@ struct KeyReader {
     read_buf: Vec<u8>,
     res_buf: Vec<u8>,
     cur: u64,
+    header: String,
+    footer: String,
 }
 
 static KEY_DEBUG: bool = true;
@@ -18,7 +21,7 @@ static KEY_DEBUG: bool = true;
 
 impl KeyReader {
     pub fn new(reader: Box<dyn Read>) -> Self {
-        let mut s = Self { reader, binary: None, temp: [0; 8], read_buf: vec![], res_buf: vec![], cur: 0 };
+        let mut s = Self { reader, binary: None, temp: [0; 8], read_buf: vec![], res_buf: vec![], cur: 0, header: "".to_string(), footer: "".to_string() };
         s.judge_binary().unwrap();
         s.parse_text().unwrap();
         if KEY_DEBUG {
@@ -37,6 +40,12 @@ impl KeyReader {
                 if !line.starts_with("-") {
                     for c in line.as_bytes() {
                         if *c != '\n' as u8 { self.res_buf.push(*c); }
+                    }
+                } else {
+                    if line.contains("END") {
+                        self.footer = line.replace("\n", "");
+                    } else {
+                        self.header = line.replace("\n", "");
                     }
                 }
             } else { break; }
@@ -87,13 +96,14 @@ impl Read for KeyReader {
     }
 }
 
-impl From<String> for Key {
+impl From<String> for KeyData {
     fn from(path: String) -> Self {
         let mut content = Vec::new();
-        base64::read::DecoderReader::new(
-            &mut KeyReader::new(Box::new(File::open(path).unwrap())),
-            base64::STANDARD)
-            .read_to_end(&mut content).unwrap();
+        let mut key_reader = KeyReader::new(Box::new(File::open(path).unwrap()));
+        let mut data_reader = base64::read::DecoderReader::new(
+            &mut key_reader,
+            base64::STANDARD);
+        data_reader.read_to_end(&mut content).unwrap();
         let mut cur = Cursor::new(&content);
         let mut len_base: [u8; 4] = [0; 4];
         let mut len_m: [u8; 4] = [0; 4];
@@ -113,11 +123,23 @@ impl From<String> for Key {
         }
         let base = BigInt::from_bytes_le(Sign::Plus, content_base.as_slice());
         let m = BigInt::from_bytes_le(Sign::Plus, content_m.as_slice());
-        Key { base, m }
+        let mut mode: [u8; 7] = [0; 7];
+        let mut cur = Cursor::new(data);
+        cur.seek(SeekFrom::Start((len_base + len_m) as u64)).unwrap();
+        cur.read(&mut mode).unwrap();
+        let mut comment = Vec::new();
+        cur.read_to_end(&mut comment).unwrap();
+        KeyData {
+            mode: String::from_utf8(mode.to_vec()).unwrap(),
+            comment: String::from_utf8(comment).unwrap(),
+            key: Key { base, m },
+            header: key_reader.header,
+            footer: key_reader.footer,
+        }
     }
 }
 
-impl Key {
+impl KeyData {
     fn is_binary(content: &Vec<u8>) -> bool {
         content.iter().filter(|x| (**x as char).is_ascii()).count() < content.len() / 2
     }
@@ -128,7 +150,8 @@ mod tests {
     use std::error::Error;
     use std::fs::File;
     use std::io::Read;
-    use crate::rsa::keys::{Key, KEY_PUBLIC};
+    use crate::rsa::keys::key_data::KeyData;
+    use crate::rsa::keys::key_pair::KeyPair;
     use crate::rsa::keys::key_reader::KeyReader;
 
     #[test]
@@ -153,8 +176,15 @@ mod tests {
 
     #[test]
     fn test_load() -> Result<(), Box<dyn Error>> {
-        let key = Key::from("data/test.pub".to_string());
-        println!("got key: {:?}", key);
+        let key = KeyData::from("data/test.pub".to_string());
+        println!("got key data: {:?}", key);
+        Ok(())
+    }
+
+    #[test]
+    fn test_key_pair_load() -> Result<(), Box<dyn Error>> {
+        let key_pair = KeyPair::from("data/test".to_string());
+        println!("got pair: {:?}", key_pair);
         Ok(())
     }
 }
