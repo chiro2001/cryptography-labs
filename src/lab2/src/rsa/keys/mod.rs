@@ -21,18 +21,6 @@ pub enum KeyError {
     FormatError,
 }
 
-impl From<String> for Key {
-    fn from(path: String) -> Self {
-        Self::load(&path).unwrap()
-    }
-}
-
-impl From<&str> for Key {
-    fn from(path: &str) -> Self {
-        Self::load(&path.to_string()).unwrap()
-    }
-}
-
 struct KeyPrivate;
 
 struct KeyPublic;
