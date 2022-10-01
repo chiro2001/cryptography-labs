@@ -8,7 +8,10 @@ use crate::rsa::RSA;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut rsa = RSA::parse();
-    println!("Run args: {:?}", rsa);
+    if rsa.output == "stdout" && (rsa.mode == "encode" || rsa.mode == "decode") {
+        rsa.silent = true;
+    }
+    if !rsa.silent { println!("Run args: {:?}", rsa); }
     rsa.run()?;
     Ok(())
 }

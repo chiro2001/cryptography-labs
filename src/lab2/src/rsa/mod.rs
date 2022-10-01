@@ -2,7 +2,6 @@ use std::error::Error;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
-use std::str::FromStr;
 use num::Integer;
 use clap::Parser;
 use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
@@ -193,7 +192,6 @@ impl RSA {
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        if self.output == "stdout" { self.silent = true; }
         match self.run_mode() {
             RunMode::Generate => {
                 let key_set = self.generate_key()?;
@@ -218,10 +216,13 @@ impl RSA {
             RunMode::Encode | RunMode::Decode => {
                 let mut reader = self.reader();
                 let mut writer = self.writer();
-                RSA::process(&mut reader, &mut writer, self.run_mode(), Key {
-                    base: BigInt::from_str("1443457866423536847339250332650263408873996464973571486540133220728631678129").unwrap(),
-                    m: BigInt::from_str("2053363943376975333926026436653596044954830140664527385358194472132153005680").unwrap(),
-                })
+                let path = match self.run_mode() {
+                    RunMode::Decode => self.key.clone(),
+                    _ => self.key.clone() + ".pub"
+                };
+                let key = KeyData::from(path);
+                RSA::process(&mut reader, &mut writer, self.run_mode(), key.key);
+                if !self.silent { println!("Done"); };
             }
         }
         Ok(())
