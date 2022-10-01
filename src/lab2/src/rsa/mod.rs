@@ -10,6 +10,8 @@ use num_traits::{One, Pow, Zero};
 use prime_gen::PrimeError;
 use crate::rsa::config::CONFIG_DEF;
 use crate::rsa::keys::{Key, KeySet};
+use crate::rsa::keys::key_data::KeyData;
+use crate::rsa::keys::key_pair::KeyPair;
 
 pub mod config;
 pub mod prime_gen;
@@ -20,36 +22,35 @@ pub enum RunMode {
     Generate,
     Encode,
     Decode,
+    Test,
 }
 
 #[derive(Debug, Parser)]
 pub struct RSA {
-    #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_min, help = "Min prime bits")]
-    pub prime_min: u32,
-    #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_max, help = "Max prime bits")]
-    pub prime_max: u32,
+    #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode", "test"])]
+    pub mode: String,
+    #[clap(short, long, value_parser, default_value = CONFIG_DEF.key.as_str(), help = "Key path, generate `path' and `path.pub'")]
+    pub key: String,
+    #[clap(short, long, value_parser, default_value = CONFIG_DEF.comment.as_str(), help = "Attach comment to key files")]
+    pub comment: String,
+    #[clap(long, value_parser, default_value_t = CONFIG_DEF.base64, help = "Output key in base64 format")]
+    pub base64: bool,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.input.as_str(), help = "Input filename")]
     pub input: String,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.output.as_str(), help = "Output filename")]
     pub output: String,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.base64_out, help = "Output in base64 format")]
-    pub base64_out: bool,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.base64_in, help = "Input in base64 format")]
-    pub base64_in: bool,
+    #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_min, help = "Min prime bits")]
+    pub prime_min: u32,
+    #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_max, help = "Max prime bits")]
+    pub prime_max: u32,
     #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.rounds, help = "Miller Rabin calculate rounds")]
     pub rounds: u32,
     #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.time_max, help = "Max time in mill seconds that trying to generate a prime")]
     pub time_max: i64,
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode"])]
-    pub mode: String,
-    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.silent, help = "Run in silence mode, disable log output")]
+    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.silent, help = "Disable log output")]
     pub silent: bool,
     #[clap(long, value_parser, default_value_t = CONFIG_DEF.retry, help = "Retry when failed to generate primes")]
     pub retry: bool,
-    #[clap(long, value_parser, default_value = CONFIG_DEF.key_public.as_str(), help = "Public key file")]
-    pub key_public: String,
-    #[clap(long, value_parser, default_value = CONFIG_DEF.key_private.as_str(), help = "Private key file")]
-    pub key_private: String,
     #[clap(long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Generate primes using <THREADS> threads")]
     pub threads: usize,
 }
@@ -65,19 +66,18 @@ impl RSA {
             prime_max: self.prime_max,
             input: self.input.clone(),
             output: self.output.clone(),
-            base64_out: self.base64_out,
-            base64_in: self.base64_in,
+            base64: self.base64,
             rounds: self.rounds,
             time_max: self.time_max,
             mode: self.mode.clone(),
             silent: self.silent,
-            key_public: self.key_public.clone(),
-            key_private: self.key_private.clone(),
+            key: self.key.clone(),
             threads: self.threads,
             retry: self.retry,
+            comment: self.comment.clone(),
         }
     }
-    
+
     pub fn set(&mut self, other: RSA) {
         *self = other;
     }
@@ -104,6 +104,7 @@ impl RSA {
             "encode" => Ok(RunMode::Encode),
             "decode" => Ok(RunMode::Decode),
             "generate" => Ok(RunMode::Generate),
+            "test" => Ok(RunMode::Test),
             _ => Err(())
         }.unwrap()
     }
@@ -192,10 +193,22 @@ impl RSA {
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.output == "stdout" { self.silent = true; }
         match self.run_mode() {
             RunMode::Generate => {
-                let keys = self.generate_key()?;
-                println!("get keys: {:?}", keys);
+                let key_set = self.generate_key()?;
+                if !self.silent { println!("get keys: {:?}", key_set); }
+                let mut key_pair = KeyPair {
+                    public: KeyData::new_public(key_set.public, "Hello RSA!".to_string()),
+                    private: KeyData::new_private(key_set.private, "Hello RSA!".to_string()),
+                };
+                if !self.silent { println!("get key_pair: {:?}", key_pair); }
+                key_pair.save(self.key.clone(), self.base64).unwrap();
+                if !self.silent { println!("Generated key files: {}, {}", self.key.clone(), self.key.clone() + ".pub"); }
+            }
+            RunMode::Test => {
+                let key_pair = KeyPair::from(self.key.clone());
+                if !self.silent { println!("get key_pair: {:?}", key_pair); }
             }
             RunMode::Encode | RunMode::Decode => {
                 let mut reader = self.reader();

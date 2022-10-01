@@ -61,7 +61,7 @@ impl KeyReader {
                 Ok(n) => match n {
                     8 => {
                         let count = self.temp.iter().filter(|x| x.is_ascii_graphic()).count();
-                        if KEY_DEBUG { println!("count: {}, data: {}", count, String::from_utf8(self.temp.to_vec()).unwrap()); }
+                        if KEY_DEBUG { println!("count: {}, data: {:?}", count, String::from_utf8(self.temp.to_vec())); }
                         self.binary = Some(count < 8);
                         for t in self.temp { self.read_buf.push(t); }
                         self.reader.read_to_end(&mut self.read_buf).unwrap();
