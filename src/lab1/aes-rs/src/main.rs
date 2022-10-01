@@ -32,11 +32,16 @@ impl Display for Args {
     }
 }
 
-pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool) {
+pub async fn run(reader: &mut dyn Read, writer: &mut dyn Write, key: &String, mode: RunMode, encode: bool, debug: Option<bool>) {
     let mut keys = [0 as u8; 16];
     for (a, b) in zip(keys.iter_mut(), key.as_bytes()) { *a = *b; }
     let mut aes = AES::new(keys, mode);
+    match debug {
+        Some(debug) => aes.debug = debug,
+        _ => {}
+    }
     if encode { aes.encode(reader, writer).await; } else { aes.decode(reader, writer).await; }
+    writer.flush().unwrap();
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -58,50 +63,54 @@ fn main() -> Result<(), Box<dyn Error>> {
     }.unwrap();
     if args.direction == "both" {
         let mut stdout: Box<dyn Write> = Box::new(io::stdout());
-        block_on(run(&mut reader, &mut writer, &args.key, mode, true));
+        block_on(run(&mut reader, &mut writer, &args.key, mode, true, None));
         assert!(args.output.as_str() != "stdout");
         let mut encoded = Box::new(File::open(args.output.as_str()).unwrap());
-        block_on(run(&mut encoded, &mut stdout, &args.key, mode, false));
+        block_on(run(&mut encoded, &mut stdout, &args.key, mode, false, None));
     } else {
-        block_on(run(&mut reader, &mut writer, &args.key, mode, args.direction == "encode"));
+        block_on(run(&mut reader, &mut writer, &args.key, mode, args.direction == "encode", None));
     }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::prelude::*;
-    use ndarray::{array, concatenate, s, stack};
-    use crate::{AES, RunMode};
+    use std::fs::File;
+    use std::io;
+    use std::io::{BufWriter, Cursor, Write};
+    // use ndarray::prelude::*;
+    // use ndarray::{array, concatenate, s, stack};
+    use crate::{AES, block_on, run, RunMode};
+    use crate::aes_rs::aes_rs::AESHexWriter;
 
-    #[test]
-    fn array_test() {
-        println!("testing ndarray");
-
-        let a: Array<u8, Ix2> = array![
-            [0, 0, 1, 4],
-            [2, 3, 4, 4],
-            [5, 5, 6, 4],
-            [5, 5, 6, 4]
-        ];
-        println!("{}", (0..4).map(|i| i * i).sum::<u8>());
-        println!("{}", (0..4).map(|i| i * i).fold(0, |a, b| a + b));
-        println!("{}", (0..4).map(|i| array![i, i, i, i])
-            .reduce(|a, b| concatenate![Axis(0), a, b])
-            .unwrap().into_shape((4, 4)).unwrap());
-
-        let stacks = (0..4).map(|i| {
-            let r = a.slice(s![i, ..]);
-            let c = concatenate![Axis(0), r, r];
-            Array::from(c.slice(s![i..(i+4)]).to_vec())
-        }).reduce(|a, b| concatenate![Axis(0), a, b]).unwrap().into_shape((4, 4)).unwrap();
-        println!("stacks: {}", stacks);
-
-
-        let s = stack![Axis(0), array![0, 0, 0], array![1, 2, 2], array![0, 0, 0]];
-        println!("s: {}", s);
-        // println!("stacks: {}", stacks[0]);
-    }
+    // #[test]
+    // fn array_test() {
+    //     println!("testing ndarray");
+    //
+    //     let a: Array<u8, Ix2> = array![
+    //         [0, 0, 1, 4],
+    //         [2, 3, 4, 4],
+    //         [5, 5, 6, 4],
+    //         [5, 5, 6, 4]
+    //     ];
+    //     println!("{}", (0..4).map(|i| i * i).sum::<u8>());
+    //     println!("{}", (0..4).map(|i| i * i).fold(0, |a, b| a + b));
+    //     println!("{}", (0..4).map(|i| array![i, i, i, i])
+    //         .reduce(|a, b| concatenate![Axis(0), a, b])
+    //         .unwrap().into_shape((4, 4)).unwrap());
+    //
+    //     let stacks = (0..4).map(|i| {
+    //         let r = a.slice(s![i, ..]);
+    //         let c = concatenate![Axis(0), r, r];
+    //         Array::from(c.slice(s![i..(i+4)]).to_vec())
+    //     }).reduce(|a, b| concatenate![Axis(0), a, b]).unwrap().into_shape((4, 4)).unwrap();
+    //     println!("stacks: {}", stacks);
+    //
+    //
+    //     let s = stack![Axis(0), array![0, 0, 0], array![1, 2, 2], array![0, 0, 0]];
+    //     println!("s: {}", s);
+    //     // println!("stacks: {}", stacks[0]);
+    // }
 
     fn init_matrix() -> [u8; 16] {
         let mut v = Vec::new();
@@ -141,5 +150,15 @@ mod tests {
 
         println!("gf_mul(1, 1): {:x}", AES::gf_mul(1, 1));
         println!("gf_mul2(1): {:x}", AES::gf_mul2(1));
+    }
+
+    #[test]
+    fn hex_encode_test() {
+        let key = "securitysecurity".to_string();
+        let data: Vec<u8> = vec![0xa6, 0xad, 0x5a, 0x7e, 0x54, 0xe2, 0x5f, 0x60, 0xe1, 0x7d, 0xeb, 0xbc, 0x5c, 0xed, 0xd7, 0x85];
+        let mut writer: Box<dyn Write> = Box::new(AESHexWriter::new(Box::new(io::stdout())));
+        block_on(run(&mut Cursor::new(&data), &mut writer, &key, RunMode::ECB, true, Some(true)));
+        block_on(run(&mut Cursor::new(&data), &mut File::create("hex_encode.bin").unwrap(), &key, RunMode::ECB, true, Some(false)));
+        block_on(run(&mut File::open("hex_encode.bin").unwrap(), &mut AESHexWriter::new(Box::new(io::stdout())), &key, RunMode::ECB, false, Some(true)));
     }
 }

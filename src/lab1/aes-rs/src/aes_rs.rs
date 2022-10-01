@@ -11,7 +11,10 @@ pub mod aes_rs {
         pub w: [u32; 44],
         pub mode: RunMode,
         pub key: [u8; 16],
+        pub debug: bool
     }
+
+    static DEBUG: bool = false;
 
     #[derive(Debug, PartialEq, Copy, Clone)]
     pub enum RunMode {
@@ -75,7 +78,7 @@ pub mod aes_rs {
 
     impl AES {
         pub fn new(key: [u8; 16], mode: RunMode) -> AES {
-            return AES { state: [0; 16], w: [0; 44], mode, key };
+            return AES { state: [0; 16], w: [0; 44], mode, key, debug: DEBUG };
         }
 
         pub fn add_round_key(&mut self, round: usize) {
@@ -213,25 +216,46 @@ pub mod aes_rs {
         }
 
         fn disp(&self) {
-            println!("{:2x?}", self.state);
+            if self.debug {
+                println!("{:2x?}", self.state);
+            }
+        }
+
+        fn disp_name(&self, name: &str) {
+            if self.debug {
+                println!("{name:24} = {:2x?}", self.state);
+            }
         }
 
         async fn do_encode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
             aes.state = source;
             if aes.mode == CBC { aes.do_xor(&last); }
+            println!("{:20}/========== ENCODE ==========\\", "");
+            aes.disp_name("raw");
             aes.reverse_axis();
+            aes.disp_name("reverse");
             aes.add_round_key(0);
+            aes.disp_name("add round 0");
             for i in 1..10 {
                 aes.sub_bytes();
+                aes.disp_name("sub bytes");
                 aes.shift_rows();
+                aes.disp_name("shift rows");
                 aes.mix_columns();
+                aes.disp_name("mix columns");
                 aes.add_round_key(i);
+                aes.disp_name(format!("add round key {}", i).as_str());
             }
             aes.sub_bytes();
+            aes.disp_name("sub bytes");
             aes.shift_rows();
+            aes.disp_name("shift rows");
             aes.add_round_key(10);
+            aes.disp_name(format!("add round key {}", 10).as_str());
             aes.reverse_axis();
+            aes.disp_name("reverse back");
+            println!("{:20}\\========== ENCODE ==========/", "");
             aes.state
         }
 
@@ -263,18 +287,31 @@ pub mod aes_rs {
         async fn do_decode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
             aes.state = source;
+            println!("{:20}/========== DECODE ==========\\", "");
+            aes.disp_name("raw");
             aes.reverse_axis();
+            aes.disp_name("reverse");
             aes.add_round_key(10);
+            aes.disp_name("add round 10");
             aes.shift_rows_inv();
+            aes.disp_name("shift rows inv");
             aes.sub_bytes_inv();
+            aes.disp_name("sub bytes inv");
             for i in 1..10 {
                 aes.add_round_key(10 - i);
+                aes.disp_name(format!("add round key {}", 10 - i).as_str());
                 aes.mix_columns_inv();
+                aes.disp_name("mix columns inv");
                 aes.shift_rows_inv();
+                aes.disp_name("shift rows inv");
                 aes.sub_bytes_inv();
+                aes.disp_name("sub bytes inv");
             }
             aes.add_round_key(0);
+            aes.disp_name("add round key 0");
             aes.reverse_axis();
+            aes.disp_name("reverse back");
+            println!("{:20}\\========== DECODE ==========/", "");
             if aes.mode == CBC { aes.do_xor(&last); }
             aes.state
         }
@@ -305,6 +342,38 @@ pub mod aes_rs {
                 let data = join_all(tasks).await;
                 let _ = data.iter().map(|x| writer.write_all(x.as_slice()).unwrap()).collect::<Vec<_>>();
             }
+        }
+    }
+
+    pub struct AESHexWriter {
+        writer: Box<dyn Write>,
+        buffer: Vec<u8>
+    }
+
+    impl AESHexWriter {
+        pub fn new(writer: Box<dyn Write>) -> Self {
+            AESHexWriter { writer, buffer: vec![] }
+        }
+    }
+
+    impl Write for AESHexWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            for b in buf { self.buffer.push(*b); }
+            Ok((buf.len()))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            self.writer.write("result: [".as_bytes()).unwrap();
+            let mut i = 0;
+            for b in &self.buffer {
+                self.writer.write(format!("{:2x}", b).as_bytes()).unwrap();
+                i += 1;
+                if i != self.buffer.len() {
+                    self.writer.write(", ".as_bytes()).unwrap();
+                }
+            }
+            self.writer.write("]\n".as_bytes()).unwrap();
+            self.writer.flush()
         }
     }
 }
