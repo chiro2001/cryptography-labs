@@ -231,7 +231,7 @@ pub mod aes_rs {
             let mut aes = *self;
             aes.state = source;
             if aes.mode == CBC { aes.do_xor(&last); }
-            println!("{:20}/========== ENCODE ==========\\", "");
+            if self.debug { println!("{:20}/========== ENCODE ==========\\", ""); }
             aes.disp_name("raw");
             aes.reverse_axis();
             aes.disp_name("reverse");
@@ -255,7 +255,7 @@ pub mod aes_rs {
             aes.disp_name(format!("add round key {}", 10).as_str());
             aes.reverse_axis();
             aes.disp_name("reverse back");
-            println!("{:20}\\========== ENCODE ==========/", "");
+            if self.debug { println!("{:20}\\========== ENCODE ==========/", ""); }
             aes.state
         }
 
@@ -287,7 +287,7 @@ pub mod aes_rs {
         async fn do_decode(&self, source: [u8; 16], last: [u8; 16]) -> [u8; 16] {
             let mut aes = *self;
             aes.state = source;
-            println!("{:20}/========== DECODE ==========\\", "");
+            if self.debug { println!("{:20}/========== DECODE ==========\\", ""); }
             aes.disp_name("raw");
             aes.reverse_axis();
             aes.disp_name("reverse");
@@ -311,7 +311,7 @@ pub mod aes_rs {
             aes.disp_name("add round key 0");
             aes.reverse_axis();
             aes.disp_name("reverse back");
-            println!("{:20}\\========== DECODE ==========/", "");
+            if self.debug { println!("{:20}\\========== DECODE ==========/", ""); }
             if aes.mode == CBC { aes.do_xor(&last); }
             aes.state
         }
