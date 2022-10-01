@@ -5,7 +5,7 @@ pub mod key_pair;
 
 use num_bigint::BigInt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Key {
     pub base: BigInt,
     pub m: BigInt,

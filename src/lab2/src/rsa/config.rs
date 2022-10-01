@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use mut_static::MutStatic;
 use crate::rsa::RSA;
+use num_cpus;
 
 lazy_static! {
     pub static ref CONFIG_DEF: RSA = RSA {
@@ -16,7 +17,7 @@ lazy_static! {
         rounds: 10,
         time_max: 1000,
         silent: false,
-        threads: 8,
+        threads: num_cpus::get(),
         retry: true,
         comment: String::from("RSA-RS COMMENT")
     };

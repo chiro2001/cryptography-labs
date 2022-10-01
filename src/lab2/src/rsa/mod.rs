@@ -1,11 +1,14 @@
 use std::error::Error;
 use std::fs::File;
-use std::io;
+use std::{io, thread};
 use std::io::{Read, Write};
+use std::time::Duration;
 use num::Integer;
 use clap::Parser;
+use crossbeam_channel::{bounded, Receiver, select, Sender};
 use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
 use num_traits::{One, Pow, Zero};
+use indicatif::{ProgressBar, ProgressStyle};
 use prime_gen::PrimeError;
 use crate::rsa::config::CONFIG_DEF;
 use crate::rsa::keys::{Key, KeySet};
@@ -16,7 +19,7 @@ pub mod config;
 pub mod prime_gen;
 pub mod keys;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RunMode {
     Generate,
     Encode,
@@ -50,7 +53,7 @@ pub struct RSA {
     pub silent: bool,
     #[clap(long, value_parser, default_value_t = CONFIG_DEF.retry, help = "Retry when failed to generate primes")]
     pub retry: bool,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Generate primes using <THREADS> threads")]
+    #[clap(long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Calculate in <THREADS> threads")]
     pub threads: usize,
 }
 
@@ -171,24 +174,74 @@ impl RSA {
 
     fn get_group_size_byte(n: &BigInt) -> usize { f64::pow(2 as f64, ((n.bits() as usize / 8) as f64).log2().ceil()) as usize / 2 }
 
-    pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key: Key) {
+    pub fn process(reader: &mut dyn Read, writer: &mut dyn Write, mode: RunMode, key: Key, threads: usize) {
         let group_size = RSA::get_group_size_byte(&key.m) * match mode {
             RunMode::Decode => 2,
             _ => 1
         };
+        let mut source_data: Vec<Vec<u8>> = Vec::new();
         loop {
             let source = RSA::read_source(reader, group_size);
             if source.is_empty() { break; }
-            let data = BigInt::from_bytes_le(Sign::Plus, source.as_slice());
-            let res = RSA::fast_modular_exponent(data.clone(), key.base.clone(), key.m.clone());
-            let mut res_data = res.to_bytes_le().1.clone();
-            let res_data_len = res_data.len();
-            match mode {
-                RunMode::Encode => for _ in 0..(group_size * 2 - res_data_len) { res_data.push(0); }
+            source_data.push(source);
+        };
+        let (map_tx, map_rx): (Sender<(usize, Key, Vec<u8>, RunMode)>, Receiver<(usize, Key, Vec<u8>, RunMode)>) = bounded(threads);
+        let (reduce_tx, reduce_rx) = bounded(threads);
+        let pb = ProgressBar::new((source_data.len() * group_size) as u64);
+        pb.set_style(ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
+            .progress_chars("#>-"));
+        let handles = thread::scope(|scope| {
+            (0..threads).map(|_i| {
+                let r = map_rx.clone();
+                let s = reduce_tx.clone();
+                thread::spawn(move || {
+                    loop {
+                        match r.recv() {
+                            Ok(r) => {
+                                let (index, key, source, mode) = r;
+                                let data = BigInt::from_bytes_le(Sign::Plus, source.as_slice());
+                                let res = RSA::fast_modular_exponent(data.clone(), key.base.clone(), key.m.clone());
+                                let mut res_data = res.to_bytes_le().1.clone();
+                                let res_data_len = res_data.len();
+                                match mode {
+                                    RunMode::Encode => for _ in 0..(group_size * 2 - res_data_len) { res_data.push(0); }
+                                    _ => {}
+                                };
+                                s.send((index, res_data)).unwrap();
+                            }
+                            _ => break
+                        }
+                    }
+                })
+            }).collect::<Vec<_>>()
+        });
+        let mut res_collect = Vec::new();
+        for i in 0..source_data.len() {
+            match reduce_rx.try_recv() {
+                Ok(r) => {
+                    res_collect.push(r);
+                    pb.inc(group_size as u64);
+                }
                 _ => {}
             };
+            map_tx.send((i, key.clone(), source_data[i].clone(), mode.clone())).unwrap();
+        }
+        drop(map_tx);
+        let left = source_data.len() - res_collect.len();
+        for _ in 0..left {
+            let r = reduce_rx.recv().unwrap();
+            res_collect.push(r);
+            pb.inc(group_size as u64);
+        }
+        pb.finish_with_message("Done");
+        for handle in handles { handle.join().unwrap(); }
+        res_collect.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        let res_collect = res_collect.iter().map(|x| x.1.clone()).collect::<Vec<_>>();
+        for res_data in res_collect {
             writer.write_all(res_data.as_slice()).unwrap();
         }
+        writer.flush().unwrap();
     }
 
     pub fn run(&mut self) -> Result<(), Box<dyn Error>> {
@@ -221,7 +274,7 @@ impl RSA {
                     _ => self.key.clone() + ".pub"
                 };
                 let key = KeyData::from(path);
-                RSA::process(&mut reader, &mut writer, self.run_mode(), key.key);
+                RSA::process(&mut reader, &mut writer, self.run_mode(), key.key, self.threads);
                 if !self.silent { println!("Done"); };
             }
         }
