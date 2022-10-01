@@ -103,7 +103,11 @@ pub mod prime_gen {
         }
         for handle in handles { handle.join().unwrap(); }
         if PRIMES_CACHE.read().unwrap().is_empty() {
-            Err(PrimeError::Timeout(CONFIG.read().unwrap().time_max))
+            if CONFIG.read().unwrap().retry {
+                generate(low, high)
+            } else {
+                Err(PrimeError::Timeout(CONFIG.read().unwrap().time_max))
+            }
         } else {
             Ok(PRIMES_CACHE.write().unwrap().pop().unwrap())
         }

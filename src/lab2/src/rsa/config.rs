@@ -26,6 +26,8 @@ pub mod config {
         pub mode: String,
         #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.silent, help = "Run in silence mode, disable log output")]
         pub silent: bool,
+        #[clap(long, value_parser, default_value_t = CONFIG_DEF.retry, help = "Retry when failed to generate primes")]
+        pub retry: bool,
         #[clap(long, value_parser, default_value = CONFIG_DEF.key_public.as_str(), help = "Public key file")]
         pub key_public: String,
         #[clap(long, value_parser, default_value = CONFIG_DEF.key_private.as_str(), help = "Private key file")]
@@ -53,6 +55,7 @@ pub mod config {
                 key_public: self.key_public.clone(),
                 key_private: self.key_private.clone(),
                 threads: self.threads,
+                retry: self.retry,
             }
         }
         pub fn set(&mut self, other: Config) {
@@ -69,12 +72,13 @@ pub mod config {
             base64_out: true,
             base64_in: false,
             rounds: 10,
-            time_max: 10000,
+            time_max: 1000,
             mode: String::from("generate"),
             silent: false,
             key_public: String::from("~/.ssh/id_rsa.pub"),
             key_private: String::from("~/.ssh/id_rsa"),
-            threads: 4
+            threads: 8,
+            retry: true
         };
         pub static ref CONFIG: MutStatic<Config> = MutStatic::new();
     }

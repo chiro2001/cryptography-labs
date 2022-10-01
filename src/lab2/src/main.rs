@@ -10,7 +10,7 @@ use std::str::FromStr;
 use clap::Parser;
 use num_bigint::BigInt;
 use crate::rsa::config::config::*;
-use crate::rsa::{check_key_set, generate_key, Key, process, RunMode};
+use crate::rsa::{generate_key, Key, process, RunMode};
 use crate::rsa::prime_gen::prime_gen;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -59,7 +59,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             })
         }
     }
-    // println!("Done");
     Ok(())
 }
 
