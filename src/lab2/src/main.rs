@@ -4,6 +4,7 @@ mod rsa;
 
 use std::error::Error;
 use clap::Parser;
+use crate::rsa::config::SILENT;
 use crate::rsa::RSA;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -11,6 +12,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     if rsa.output == "stdout" && (rsa.mode == "encode" || rsa.mode == "decode") {
         rsa.silent = true;
     }
+    if !SILENT.is_set().unwrap() { SILENT.set(rsa.silent).unwrap(); }
     if !rsa.silent { println!("Run args: {:?}", rsa); }
     rsa.run()?;
     Ok(())

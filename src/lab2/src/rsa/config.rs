@@ -19,5 +19,7 @@ lazy_static! {
         retry: true,
         comment: String::from("RSA-RS COMMENT")
     };
-    pub static ref SILENT: MutStatic<bool> = MutStatic::from(false);
+    pub static ref SILENT: MutStatic<bool> =
+        // MutStatic::new();
+        MutStatic::from(false);
 }
