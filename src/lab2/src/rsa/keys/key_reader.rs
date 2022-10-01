@@ -23,10 +23,10 @@ impl KeyReader {
     pub fn new(reader: Box<dyn Read>) -> Self {
         let mut s = Self { reader, binary: None, temp: [0; 8], read_buf: vec![], res_buf: vec![], cur: 0, header: "".to_string(), footer: "".to_string() };
         s.judge_binary().unwrap();
-        s.parse_text().unwrap();
+        if !s.binary.unwrap() { s.parse_text().unwrap(); } else { s.res_buf.append(&mut s.read_buf); }
         if KEY_DEBUG {
             println!("res_buf: {:x?}", s.res_buf);
-            println!("res: {}", String::from_utf8(s.res_buf.clone()).unwrap());
+            if !s.binary.unwrap() { println!("res: {:?}", String::from_utf8(s.res_buf.clone())); }
         }
         s
     }
@@ -61,9 +61,10 @@ impl KeyReader {
                 Ok(n) => match n {
                     8 => {
                         let count = self.temp.iter().filter(|x| x.is_ascii_graphic()).count();
-                        if KEY_DEBUG { println!("count: {}, data: {:?}", count, String::from_utf8(self.temp.to_vec())); }
                         self.binary = Some(count < 8);
+                        if KEY_DEBUG { println!("binary: {:?}", self.binary); }
                         for t in self.temp { self.read_buf.push(t); }
+                        if KEY_DEBUG { println!("count: {}, data: {:?}, temp: {:x?}, read_buf: {:x?}", count, String::from_utf8(self.temp.to_vec()), self.temp, self.read_buf); }
                         self.reader.read_to_end(&mut self.read_buf).unwrap();
                         Ok(())
                     }
@@ -80,8 +81,7 @@ impl KeyReader {
 impl Read for KeyReader {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         match self.binary {
-            Some(true) => self.reader.read(buf),
-            Some(false) => {
+            Some(_) => {
                 let mut reader = Cursor::new(&self.res_buf);
                 reader.seek(SeekFrom::Start(self.cur)).unwrap();
                 let res = reader.read(buf);
@@ -100,10 +100,14 @@ impl From<String> for KeyData {
     fn from(path: String) -> Self {
         let mut content = Vec::new();
         let mut key_reader = KeyReader::new(Box::new(File::open(path).unwrap()));
-        let mut data_reader = base64::read::DecoderReader::new(
-            &mut key_reader,
-            base64::STANDARD);
-        data_reader.read_to_end(&mut content).unwrap();
+        if !key_reader.binary.unwrap() {
+            let mut data_reader = base64::read::DecoderReader::new(
+                &mut key_reader,
+                base64::STANDARD);
+            data_reader.read_to_end(&mut content).unwrap();
+        } else {
+            key_reader.read_to_end(&mut content).unwrap();
+        }
         let mut cur = Cursor::new(&content);
         let mut len_base: [u8; 4] = [0; 4];
         let mut len_m: [u8; 4] = [0; 4];
