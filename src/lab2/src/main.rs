@@ -9,9 +9,9 @@ use std::io::{Read, Write};
 use std::str::FromStr;
 use clap::Parser;
 use num_bigint::BigInt;
-use crate::rsa::config::config::*;
-use crate::rsa::{generate_key, Key, process, RunMode};
-use crate::rsa::prime_gen::prime_gen;
+use crate::rsa::config::*;
+use crate::rsa::{generate_key, process, RunMode};
+use crate::rsa::keys::Key;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Config::parse();
@@ -71,11 +71,12 @@ mod tests {
     use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
     use num_traits::One;
     use crate::{CONFIG, generate_key, Key, process, rsa, RunMode};
-    use crate::prime_gen::{fast_modular_exponent, generate};
-    use crate::rsa::{check_key_set, KeySet, mod_reverse};
-    use crate::rsa::config::config;
-    use crate::rsa::prime_gen::prime_gen;
-    use crate::rsa::prime_gen::prime_gen::miller_rabin;
+    use crate::rsa::prime_gen::{fast_modular_exponent, generate};
+    use crate::rsa::{check_key_set, mod_reverse};
+    use crate::rsa::config;
+    use crate::rsa::keys::KeySet;
+    use crate::rsa::prime_gen;
+    use crate::rsa::prime_gen::miller_rabin;
 
     #[test]
     fn gen_prime() -> Result<(), Box<dyn Error>> {

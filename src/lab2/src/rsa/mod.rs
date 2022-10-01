@@ -2,23 +2,13 @@ use std::io::{Read, Write};
 use num::Integer;
 use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
 use num_traits::{One, Pow, Zero};
-use crate::CONFIG;
-use crate::prime_gen::{fast_modular_exponent, generate, PrimeError};
+use prime_gen::{fast_modular_exponent, generate, PrimeError};
+use crate::rsa::config::CONFIG;
+use crate::rsa::keys::{Key, KeySet};
 
 pub mod config;
 pub mod prime_gen;
-
-#[derive(Debug)]
-pub struct Key {
-    pub base: BigInt,
-    pub m: BigInt,
-}
-
-#[derive(Debug)]
-pub struct KeySet {
-    pub public: Key,
-    pub private: Key,
-}
+pub mod keys;
 
 #[derive(Debug)]
 pub enum RunMode {
