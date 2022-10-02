@@ -87,10 +87,10 @@ mod tests {
         let (key_public, key_private) = (keys.public, keys.private);
         let mut reader = File::open(&r.input).unwrap();
         let mut writer_temp = File::create(&r.output).unwrap();
-        RSA::process(&mut reader, &mut writer_temp, RunMode::Encode, key_public);
+        RSA::process(&mut reader, &mut writer_temp, RunMode::Encode, key_public, 1, false);
         let mut reader_temp = File::open(&r.output).unwrap();
         let mut writer = io::stdout();
-        RSA::process(&mut reader_temp, &mut writer, RunMode::Decode, key_private);
+        RSA::process(&mut reader_temp, &mut writer, RunMode::Decode, key_private, 1, false);
         println!("\nDone.");
         Ok(())
     }

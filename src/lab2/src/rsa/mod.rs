@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fs::File;
 use std::{io, thread};
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use num::Integer;
 use clap::Parser;
 use crossbeam_channel::{bounded, Receiver, Sender};
@@ -268,10 +268,28 @@ impl RSA {
             RunMode::Test => {
                 let key_pair = KeyPair::from(self.key.clone());
                 if !self.silent { println!("get key_pair: {:?}", key_pair); }
-                let m = BigInt::from(88);
-                let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
-                let m2 = RSA::fast_modular_exponent(c.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
-                assert_eq!(m, m2);
+                assert_eq!(key_pair.public.key.m, key_pair.private.key.m);
+                let group_size = RSA::get_group_size_byte(&key_pair.public.key.m);
+                let mut reader = if self.input != "stdin" { self.reader() } else { Box::new(File::open("/dev/random").unwrap()) };
+                loop {
+                    let source = RSA::read_source(&mut reader, group_size);
+                    if source.is_empty() { break; }
+                    let m = BigInt::from_bytes_le(Sign::Plus, &source);
+                    let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
+                    let m2 = RSA::fast_modular_exponent(c.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
+                    assert_eq!(m, m2);
+                    let mut buf: Vec<u8> = Vec::new();
+                    let mut writer = Cursor::new(&mut buf);
+                    writer.write_all(&c.to_bytes_le().1).unwrap();
+                    writer.flush().unwrap();
+                    let buf_len = buf.len();
+                    for _ in 0..(group_size * 2 - buf_len) { buf.push(0); }
+                    assert_eq!(2 * group_size, buf.len());
+                    let c2 = BigInt::from_bytes_le(Sign::Plus, &buf);
+                    assert_eq!(c, c2);
+                    let m3 = RSA::fast_modular_exponent(c2.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
+                    assert_eq!(m2, m3);
+                }
                 if !self.silent { println!("Test pass"); };
             }
             RunMode::Encode | RunMode::Decode => {
