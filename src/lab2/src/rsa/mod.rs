@@ -178,12 +178,22 @@ impl RSA {
             RunMode::Decode => 2,
             _ => 1
         };
+        let source_len_target = match mode {
+            RunMode::Encode => group_size,
+            _ => group_size
+        };
+        let res_len_target = match mode {
+            RunMode::Encode => group_size * 2,
+            _ => group_size / 2
+        };
         let mut source_data: Vec<Vec<u8>> = Vec::new();
         loop {
-            let source = RSA::read_source(reader, group_size);
+            let source = RSA::read_source(reader, source_len_target);
             if source.is_empty() { break; }
             source_data.push(source);
         };
+        let chunks = source_data.len();
+        if !silent { println!("source chunk: {}", chunks); }
         let (map_tx, map_rx): (Sender<(usize, Key, Vec<u8>, RunMode)>, Receiver<(usize, Key, Vec<u8>, RunMode)>) = bounded(threads);
         let (reduce_tx, reduce_rx) = bounded(threads);
         let pb = match silent {
@@ -195,10 +205,6 @@ impl RSA {
                 .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
                 .progress_chars("#>-"));
         }
-        let res_len_target = match mode {
-            RunMode::Encode => 2 * group_size,
-            _ => group_size
-        };
         let handles = (0..threads).map(|_i| {
             let r = map_rx.clone();
             let s = reduce_tx.clone();
@@ -214,14 +220,14 @@ impl RSA {
                             match mode {
                                 RunMode::Encode | RunMode::Decode => {
                                     let fill = res_len_target - res_data_len;
-                                    if fill != 0 {
-                                        println!("fill {} bytes", fill);
+                                    if fill != 0 && chunks != index + 1 {
+                                        // println!("fill {} bytes", fill);
                                         for _ in 0..fill { res_data.push(0); }
                                     }
                                 }
                                 _ => {}
                             };
-                            assert_eq!(res_len_target, res_data.len());
+                            if chunks != index + 1 { assert_eq!(res_len_target, res_data.len()); }
                             s.send((index, res_data)).unwrap();
                         }
                         _ => break
@@ -256,12 +262,14 @@ impl RSA {
         }
         for handle in handles { handle.join().unwrap(); }
         res_collect.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        for i in 0..res_collect.len() {
+            assert_eq!(i, res_collect[i].0);
+        }
+        assert_eq!(res_collect.len(), source_data.len());
+        if !silent { println!("res chunk: {}", res_collect.len()); }
         let res_collect = res_collect.iter().map(|x| x.1.clone()).collect::<Vec<_>>();
         for res_data in res_collect {
-            assert_eq!(res_len_target, res_data.len());
-            let n = writer.write(&res_data).unwrap();
-            assert_eq!(res_len_target, n);
-            writer.write_all(&res_data).unwrap();
+            writer.write(&res_data).unwrap();
         }
         writer.flush().unwrap();
     }
@@ -305,6 +313,9 @@ impl RSA {
                         .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
                         .progress_chars("#>-"));
                 }
+                let mut file_writer = if self.output != "stdout" {
+                    Some(Box::new(File::create(self.output.as_str()).unwrap()))
+                } else { None };
                 for source in source_data {
                     let m = BigInt::from_bytes_le(Sign::Plus, &source);
                     let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
@@ -331,6 +342,10 @@ impl RSA {
                     assert_eq!(source, buf);
                     if let Some(pb) = &pb {
                         pb.inc(group_size as u64);
+                    }
+                    if let Some(file_writer) = &mut file_writer {
+                        file_writer.write_all(&buf).unwrap();
+                        file_writer.flush().unwrap();
                     }
                 }
                 if let Some(pb) = &pb {
