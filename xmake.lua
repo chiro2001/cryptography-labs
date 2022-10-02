@@ -13,6 +13,7 @@ function getname(file)
 end
 
 add_includedirs("$(projectdir)/src/include")
+add_cxflags("-static")
 
 for _, dir in ipairs(os.dirs(os.projectdir() .. "/src/*")) do
   local name = getpathname(dir)

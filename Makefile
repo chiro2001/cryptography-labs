@@ -31,4 +31,8 @@ clean: docs-clean
 	-rm -rf $(BUILD_DIR)
 	-rm -rf .xmake
 
+clean-build: docs-clean
+	-rm -rf $(BUILD_DIR)/.packages $(BUILD_DIR)/.objs $(BUILD_DIR)/.deps $(BUILD_DIR)/.build_cache
+	-rm -rf .xmake
+
 .PHONY: all run docs docs-%
