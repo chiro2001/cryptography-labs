@@ -195,6 +195,10 @@ impl RSA {
                 .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
                 .progress_chars("#>-"));
         }
+        let res_len_target = match mode {
+            RunMode::Encode => 2 * group_size,
+            _ => group_size
+        };
         let handles = (0..threads).map(|_i| {
             let r = map_rx.clone();
             let s = reduce_tx.clone();
@@ -208,9 +212,16 @@ impl RSA {
                             let mut res_data = res.to_bytes_le().1.clone();
                             let res_data_len = res_data.len();
                             match mode {
-                                RunMode::Encode => for _ in 0..(group_size * 2 - res_data_len) { res_data.push(0); }
+                                RunMode::Encode | RunMode::Decode => {
+                                    let fill = res_len_target - res_data_len;
+                                    if fill != 0 {
+                                        println!("fill {} bytes", fill);
+                                        for _ in 0..fill { res_data.push(0); }
+                                    }
+                                }
                                 _ => {}
                             };
+                            assert_eq!(res_len_target, res_data.len());
                             s.send((index, res_data)).unwrap();
                         }
                         _ => break
@@ -247,7 +258,10 @@ impl RSA {
         res_collect.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
         let res_collect = res_collect.iter().map(|x| x.1.clone()).collect::<Vec<_>>();
         for res_data in res_collect {
-            writer.write_all(res_data.as_slice()).unwrap();
+            assert_eq!(res_len_target, res_data.len());
+            let n = writer.write(&res_data).unwrap();
+            assert_eq!(res_len_target, n);
+            writer.write_all(&res_data).unwrap();
         }
         writer.flush().unwrap();
     }
@@ -270,10 +284,28 @@ impl RSA {
                 if !self.silent { println!("get key_pair: {:?}", key_pair); }
                 assert_eq!(key_pair.public.key.m, key_pair.private.key.m);
                 let group_size = RSA::get_group_size_byte(&key_pair.public.key.m);
+                let res_len_target = |mode| match mode {
+                    RunMode::Encode => 2 * group_size,
+                    _ => group_size
+                };
                 let mut reader = if self.input != "stdin" { self.reader() } else { Box::new(File::open("/dev/random").unwrap()) };
-                loop {
+                let max_source_len = 1000;
+                let mut source_data: Vec<Vec<u8>> = Vec::new();
+                for _ in 0..max_source_len {
                     let source = RSA::read_source(&mut reader, group_size);
                     if source.is_empty() { break; }
+                    source_data.push(source);
+                }
+                let pb = match self.silent {
+                    true => None,
+                    false => Some(ProgressBar::new((source_data.len() * group_size) as u64)),
+                };
+                if let Some(pb) = &pb {
+                    pb.set_style(ProgressStyle::default_bar()
+                        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
+                        .progress_chars("#>-"));
+                }
+                for source in source_data {
                     let m = BigInt::from_bytes_le(Sign::Plus, &source);
                     let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
                     let m2 = RSA::fast_modular_exponent(c.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
@@ -281,14 +313,28 @@ impl RSA {
                     let mut buf: Vec<u8> = Vec::new();
                     let mut writer = Cursor::new(&mut buf);
                     writer.write_all(&c.to_bytes_le().1).unwrap();
+                    let buf_len = (c.bits() as f64 / 8.0).ceil() as usize;
+                    for _ in 0..(res_len_target(RunMode::Encode) - buf_len as usize) { writer.write(&[0]).unwrap(); }
                     writer.flush().unwrap();
-                    let buf_len = buf.len();
-                    for _ in 0..(group_size * 2 - buf_len) { buf.push(0); }
                     assert_eq!(2 * group_size, buf.len());
                     let c2 = BigInt::from_bytes_le(Sign::Plus, &buf);
                     assert_eq!(c, c2);
                     let m3 = RSA::fast_modular_exponent(c2.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
                     assert_eq!(m2, m3);
+                    assert_eq!(m2.to_bytes_le().1, m3.to_bytes_le().1);
+                    let mut buf: Vec<u8> = Vec::new();
+                    let mut writer = Cursor::new(&mut buf);
+                    writer.write_all(&m3.to_bytes_le().1).unwrap();
+                    let buf_len = (m3.bits() as f64 / 8.0).ceil() as usize;
+                    for _ in 0..(res_len_target(RunMode::Decode) - buf_len as usize) { writer.write(&[0]).unwrap(); }
+                    writer.flush().unwrap();
+                    assert_eq!(source, buf);
+                    if let Some(pb) = &pb {
+                        pb.inc(group_size as u64);
+                    }
+                }
+                if let Some(pb) = &pb {
+                    pb.finish_with_message("Test pass");
                 }
                 if !self.silent { println!("Test pass"); };
             }
