@@ -33,8 +33,8 @@ impl KeyWriter {
         KeyWriter {
             writer: f,
             buffer: vec![],
-            header: "-----BEGIN RSA-RS [MODE] KEY-----".to_string(),
-            footer: "-----END RSA-RS [MODE] KEY-----".to_string(),
+            header: "".to_string(),
+            footer: "".to_string(),
         }
     }
 }
@@ -68,12 +68,11 @@ impl Write for KeyWriter {
 
 impl KeyData {
     pub fn save(&mut self, path: String, base64_output: bool) -> Result<(), KeyError> {
-        self.generate_header_footer();
+        if self.footer.is_empty() && self.header.is_empty() {
+            self.generate_header_footer();
+        }
         let base = self.key.base.to_bytes_le().1;
         let m = self.key.m.to_bytes_le().1;
-        if base.len() < 8 || m.len() < 8 {
-            return Err(KeyError::FormatError);
-        }
         let mut f: Box<dyn Write> = match base64_output {
             true => {
                 let mut key_writer = KeyWriter::from(Box::new(File::create(path).unwrap()));

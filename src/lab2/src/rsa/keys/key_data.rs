@@ -15,6 +15,11 @@ impl KeyData {
         self.footer = format!("-----END RSA-RS {} KEY-----", self.mode.to_uppercase());
     }
 
+    pub fn generate_header_footer_bits(&mut self, bits: usize) {
+        self.header = format!("-----BEGIN RSA-{} {} KEY-----", bits, self.mode.to_uppercase());
+        self.footer = format!("-----END RSA-{} {} KEY-----", bits, self.mode.to_uppercase());
+    }
+
     pub fn new_public(key: Key, comment: String) -> Self {
         Self {
             mode: "PUBLIC ".to_string(),

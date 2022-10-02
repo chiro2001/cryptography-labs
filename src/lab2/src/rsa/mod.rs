@@ -46,13 +46,13 @@ pub struct RSA {
     pub prime_max: u32,
     #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.rounds, help = "Miller Rabin calculate rounds")]
     pub rounds: u32,
-    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.time_max, help = "Max time in mill seconds that trying to generate a prime")]
+    #[clap(long, value_parser, default_value_t = CONFIG_DEF.time_max, help = "Max time in mill seconds that trying to generate a prime")]
     pub time_max: i64,
     #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.silent, help = "Disable log output")]
     pub silent: bool,
     #[clap(long, value_parser, default_value_t = CONFIG_DEF.retry, help = "Retry when failed to generate primes")]
     pub retry: bool,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Calculate in <THREADS> threads")]
+    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Calculate in <THREADS> threads")]
     pub threads: usize,
 }
 
@@ -284,6 +284,8 @@ impl RSA {
                     public: KeyData::new_public(key_set.public, "Hello RSA!".to_string()),
                     private: KeyData::new_private(key_set.private, "Hello RSA!".to_string()),
                 };
+                key_pair.private.generate_header_footer_bits(self.prime_max as usize);
+                key_pair.public.generate_header_footer_bits(self.prime_max as usize);
                 if !self.silent { println!("get key_pair: {:?}", key_pair); }
                 key_pair.save(self.key.clone(), self.base64).unwrap();
                 if !self.silent { println!("Generated key files: {}, {}", self.key.clone(), self.key.clone() + ".pub"); }
