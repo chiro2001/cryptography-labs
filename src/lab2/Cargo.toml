@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 repository = "https://github.com/chiro2001/cryptography-labs"
 description = "Simple RSA generate / encode / decode tool"
-authors = ["Chiro", "Chiro2001@163.com"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
