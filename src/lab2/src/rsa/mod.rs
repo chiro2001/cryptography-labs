@@ -27,6 +27,7 @@ pub enum RunMode {
 }
 
 #[derive(Debug, Parser)]
+#[command(author, version, about, long_about = None)]
 pub struct RSA {
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode", "test"])]
     pub mode: String,
