@@ -186,6 +186,7 @@ impl RSA {
             RunMode::Encode => group_size * 2,
             _ => group_size / 2
         };
+        if !silent { println!("group size {}, input => output: {} => {}", group_size, source_len_target, res_len_target); }
         let mut source_data: Vec<Vec<u8>> = Vec::new();
         loop {
             let source = RSA::read_source(reader, source_len_target);
