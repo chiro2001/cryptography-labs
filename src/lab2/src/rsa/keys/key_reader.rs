@@ -99,7 +99,12 @@ impl Read for KeyReader {
 impl From<String> for KeyData {
     fn from(path: String) -> Self {
         let mut content = Vec::new();
-        let mut key_reader = KeyReader::new(Box::new(File::open(path).unwrap()));
+        let file = File::open(path);
+        match file {
+            Err(_) => return KeyData::default(),
+            _ => {}
+        };
+        let mut key_reader = KeyReader::new(Box::new(file.unwrap()));
         if !key_reader.binary.unwrap() {
             let mut data_reader = base64::read::DecoderReader::new(
                 &mut key_reader,

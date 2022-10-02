@@ -4,11 +4,24 @@ pub mod key_data;
 pub mod key_pair;
 
 use num_bigint::BigInt;
+use num_traits::Zero;
 
 #[derive(Debug, Clone)]
 pub struct Key {
     pub base: BigInt,
     pub m: BigInt,
+}
+
+impl Default for Key {
+    fn default() -> Self {
+        Self { base: BigInt::zero(), m: BigInt::zero() }
+    }
+}
+
+impl PartialEq for Key {
+    fn eq(&self, other: &Self) -> bool {
+        self.m == other.m && self.base == other.base
+    }
 }
 
 #[derive(Debug)]

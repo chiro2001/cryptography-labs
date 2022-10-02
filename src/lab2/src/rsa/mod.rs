@@ -30,12 +30,12 @@ pub enum RunMode {
 pub struct RSA {
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode", "test"])]
     pub mode: String,
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.key.as_str(), help = "Key path, generate `path' and `path.pub'")]
+    #[clap(short, long, value_parser, default_value = CONFIG_DEF.key.as_str(), help = "Key path, generate/detect `path' and `path.pub'")]
     pub key: String,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.comment.as_str(), help = "Attach comment to key files")]
     pub comment: String,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.base64, help = "Output key in base64 format")]
-    pub base64: bool,
+    #[clap(long, value_parser, default_value_t = CONFIG_DEF.binary, help = "Output key in base64 format")]
+    pub binary: bool,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.input.as_str(), help = "Input filename")]
     pub input: String,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.output.as_str(), help = "Output filename")]
@@ -67,7 +67,7 @@ impl RSA {
             prime_max: self.prime_max,
             input: self.input.clone(),
             output: self.output.clone(),
-            base64: self.base64,
+            binary: self.binary,
             rounds: self.rounds,
             time_max: self.time_max,
             mode: self.mode.clone(),
@@ -281,80 +281,93 @@ impl RSA {
                 let key_set = self.generate_key()?;
                 if !self.silent { println!("get keys: {:?}", key_set); }
                 let mut key_pair = KeyPair {
-                    public: KeyData::new_public(key_set.public, "Hello RSA!".to_string()),
-                    private: KeyData::new_private(key_set.private, "Hello RSA!".to_string()),
+                    public: KeyData::new_public(key_set.public, self.comment.clone()),
+                    private: KeyData::new_private(key_set.private, self.comment.clone()),
                 };
                 key_pair.private.generate_header_footer_bits(self.prime_max as usize);
                 key_pair.public.generate_header_footer_bits(self.prime_max as usize);
                 if !self.silent { println!("get key_pair: {:?}", key_pair); }
-                key_pair.save(self.key.clone(), self.base64).unwrap();
+                key_pair.save(self.key.clone(), !self.binary).unwrap();
                 if !self.silent { println!("Generated key files: {}, {}", self.key.clone(), self.key.clone() + ".pub"); }
             }
             RunMode::Test => {
                 let key_pair = KeyPair::from(self.key.clone());
-                if !self.silent { println!("get key_pair: {:?}", key_pair); }
-                assert_eq!(key_pair.public.key.m, key_pair.private.key.m);
-                let group_size = RSA::get_group_size_byte(&key_pair.public.key.m);
-                let res_len_target = |mode| match mode {
-                    RunMode::Encode => 2 * group_size,
-                    _ => group_size
-                };
-                let mut reader = if self.input != "stdin" { self.reader() } else { Box::new(File::open("/dev/random").unwrap()) };
-                let max_source_len = 1000;
-                let mut source_data: Vec<Vec<u8>> = Vec::new();
-                for _ in 0..max_source_len {
-                    let source = RSA::read_source(&mut reader, group_size);
-                    if source.is_empty() { break; }
-                    source_data.push(source);
-                }
-                let pb = match self.silent {
-                    true => None,
-                    false => Some(ProgressBar::new((source_data.len() * group_size) as u64)),
-                };
-                if let Some(pb) = &pb {
-                    pb.set_style(ProgressStyle::default_bar()
-                        .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
-                        .progress_chars("#>-"));
-                }
-                let mut file_writer = if self.output != "stdout" {
-                    Some(Box::new(File::create(self.output.as_str()).unwrap()))
-                } else { None };
-                for source in source_data {
-                    let m = BigInt::from_bytes_le(Sign::Plus, &source);
-                    let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
-                    let m2 = RSA::fast_modular_exponent(c.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
-                    assert_eq!(m, m2);
-                    let mut buf: Vec<u8> = Vec::new();
-                    let mut writer = Cursor::new(&mut buf);
-                    writer.write_all(&c.to_bytes_le().1).unwrap();
-                    let buf_len = (c.bits() as f64 / 8.0).ceil() as usize;
-                    for _ in 0..(res_len_target(RunMode::Encode) - buf_len as usize) { writer.write(&[0]).unwrap(); }
-                    writer.flush().unwrap();
-                    assert_eq!(2 * group_size, buf.len());
-                    let c2 = BigInt::from_bytes_le(Sign::Plus, &buf);
-                    assert_eq!(c, c2);
-                    let m3 = RSA::fast_modular_exponent(c2.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
-                    assert_eq!(m2, m3);
-                    assert_eq!(m2.to_bytes_le().1, m3.to_bytes_le().1);
-                    let mut buf: Vec<u8> = Vec::new();
-                    let mut writer = Cursor::new(&mut buf);
-                    writer.write_all(&m3.to_bytes_le().1).unwrap();
-                    let buf_len = (m3.bits() as f64 / 8.0).ceil() as usize;
-                    for _ in 0..(res_len_target(RunMode::Decode) - buf_len as usize) { writer.write(&[0]).unwrap(); }
-                    writer.flush().unwrap();
-                    assert_eq!(source, buf);
+                if key_pair.public == KeyData::default() || key_pair.private == KeyData::default() {
+                    let key = if key_pair.public == KeyData::default() {
+                        key_pair.private
+                    } else {
+                        key_pair.public
+                    };
+                    if !self.silent { print!("key infomation: "); }
+                    key.info();
+                } else {
+                    key_pair.public.info();
+                    key_pair.private.info();
+                    if !self.silent { println!("start testing key pair"); }
+                    if !self.silent { println!("get key_pair: {:?}", key_pair); }
+                    assert_eq!(key_pair.public.key.m, key_pair.private.key.m);
+                    let group_size = RSA::get_group_size_byte(&key_pair.public.key.m);
+                    let res_len_target = |mode| match mode {
+                        RunMode::Encode => 2 * group_size,
+                        _ => group_size
+                    };
+                    let mut reader = if self.input != "stdin" { self.reader() } else { Box::new(File::open("/dev/random").unwrap()) };
+                    let max_source_len = 1000;
+                    let mut source_data: Vec<Vec<u8>> = Vec::new();
+                    for _ in 0..max_source_len {
+                        let source = RSA::read_source(&mut reader, group_size);
+                        if source.is_empty() { break; }
+                        source_data.push(source);
+                    }
+                    let pb = match self.silent {
+                        true => None,
+                        false => Some(ProgressBar::new((source_data.len() * group_size) as u64)),
+                    };
                     if let Some(pb) = &pb {
-                        pb.inc(group_size as u64);
+                        pb.set_style(ProgressStyle::default_bar()
+                            .template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta})").unwrap()
+                            .progress_chars("#>-"));
                     }
-                    if let Some(file_writer) = &mut file_writer {
-                        file_writer.write_all(&buf).unwrap();
-                        file_writer.flush().unwrap();
+                    let mut file_writer = if self.output != "stdout" {
+                        Some(Box::new(File::create(self.output.as_str()).unwrap()))
+                    } else { None };
+                    for source in source_data {
+                        let m = BigInt::from_bytes_le(Sign::Plus, &source);
+                        let c = RSA::fast_modular_exponent(m.clone(), key_pair.public.key.base.clone(), key_pair.public.key.m.clone());
+                        let m2 = RSA::fast_modular_exponent(c.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
+                        assert_eq!(m, m2);
+                        let mut buf: Vec<u8> = Vec::new();
+                        let mut writer = Cursor::new(&mut buf);
+                        writer.write_all(&c.to_bytes_le().1).unwrap();
+                        let buf_len = (c.bits() as f64 / 8.0).ceil() as usize;
+                        for _ in 0..(res_len_target(RunMode::Encode) - buf_len as usize) { writer.write(&[0]).unwrap(); }
+                        writer.flush().unwrap();
+                        assert_eq!(2 * group_size, buf.len());
+                        let c2 = BigInt::from_bytes_le(Sign::Plus, &buf);
+                        assert_eq!(c, c2);
+                        let m3 = RSA::fast_modular_exponent(c2.clone(), key_pair.private.key.base.clone(), key_pair.private.key.m.clone());
+                        assert_eq!(m2, m3);
+                        assert_eq!(m2.to_bytes_le().1, m3.to_bytes_le().1);
+                        let mut buf: Vec<u8> = Vec::new();
+                        let mut writer = Cursor::new(&mut buf);
+                        writer.write_all(&m3.to_bytes_le().1).unwrap();
+                        let buf_len = (m3.bits() as f64 / 8.0).ceil() as usize;
+                        for _ in 0..(res_len_target(RunMode::Decode) - buf_len as usize) { writer.write(&[0]).unwrap(); }
+                        writer.flush().unwrap();
+                        assert_eq!(source, buf);
+                        if let Some(pb) = &pb {
+                            pb.inc(group_size as u64);
+                        }
+                        if let Some(file_writer) = &mut file_writer {
+                            file_writer.write_all(&buf).unwrap();
+                            file_writer.flush().unwrap();
+                        }
                     }
+                    if let Some(pb) = &pb {
+                        pb.finish_with_message("Test pass");
+                    }
+                    if !self.silent { println!("Test pass"); };
                 }
-                if let Some(pb) = &pb {
-                    pb.finish_with_message("Test pass");
-                }
-                if !self.silent { println!("Test pass"); };
             }
             RunMode::Encode | RunMode::Decode => {
                 let mut reader = self.reader();
