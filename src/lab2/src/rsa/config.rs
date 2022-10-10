@@ -6,7 +6,7 @@ use num_cpus;
 lazy_static! {
     pub static ref CONFIG_DEF: RSA = RSA {
         mode: String::from("generate"),
-        key: String::from("data/rsa"),
+        key: String::from("key"),
         input: String::from("stdin"),
         // input: String::from("data/lab2-Plaintext.txt"),
         output: String::from("stdout"),

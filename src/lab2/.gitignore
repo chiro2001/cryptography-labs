@@ -9,3 +9,6 @@ build/
 
 *.pub
 *.pri
+
+key
+key.pub
