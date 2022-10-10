@@ -188,12 +188,25 @@ impl RSA {
         };
         if !silent { println!("group size {}, input => output: {} => {}", group_size, source_len_target, res_len_target); }
         let mut source_data: Vec<Vec<u8>> = Vec::new();
+        let mut filesize_data = match mode {
+            RunMode::Decode => {
+                let mut t = [0 as u8; 8];
+                let n = reader.read(&mut t).unwrap();
+                assert_eq!(n, 8, "Too small file!");
+                u64::from_le_bytes(t)
+            }
+            _ => 0
+        };
         loop {
             let source = RSA::read_source(reader, source_len_target);
             if source.is_empty() { break; }
             source_data.push(source);
         };
         let chunks = source_data.len();
+        let filesize_read = source_data.iter().map(|v| v.len()).sum::<usize>() as u64;
+        if filesize_data == 0 {
+            filesize_data = filesize_read;
+        }
         if !silent { println!("source chunk: {}", chunks); }
         let (map_tx, map_rx): (Sender<(usize, Key, Vec<u8>, RunMode)>, Receiver<(usize, Key, Vec<u8>, RunMode)>) = bounded(threads);
         let (reduce_tx, reduce_rx) = bounded(threads);
@@ -267,11 +280,23 @@ impl RSA {
             assert_eq!(i, res_collect[i].0);
         }
         assert_eq!(res_collect.len(), source_data.len());
-        if !silent { println!("res chunk: {}", res_collect.len()); }
+        if !silent { println!("read filesize: {filesize_read}, data filesize: {filesize_data} res chunk: {}", res_collect.len()); }
         let res_collect = res_collect.iter().map(|x| x.1.clone()).collect::<Vec<_>>();
-        for res_data in res_collect {
+        match mode {
+            RunMode::Encode => {
+                writer.write(&filesize_data.to_le_bytes()).unwrap();
+            }
+            _ => {}
+        };
+        for res_data in &res_collect {
             writer.write(&res_data).unwrap();
         }
+        match mode {
+            RunMode::Decode => for _ in 0..(filesize_data - res_collect.iter().map(|v| v.len()).sum::<usize>() as u64) {
+                writer.write(&[0 as u8; 1]).unwrap();
+            },
+            _ => {}
+        };
         writer.flush().unwrap();
     }
 
