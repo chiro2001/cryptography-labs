@@ -6,7 +6,14 @@
 \usepackage{getenv}
 
 \getenv[\LAB]{LAB}
-\markdownSetup{fencedCode = true}
+\markdownSetup{
+    rendererPrototypes = {
+        image = {\includegraphics[clip,width=0.8\textwidth]{#2}},
+        codeSpan = {\texttt{#1}},
+        % Render inline code via `\texttt`.
+        },
+    fencedCode = true
+}
 \title{密码学实验-\LAB}
 
 \begin{document}

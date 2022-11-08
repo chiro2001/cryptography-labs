@@ -15,12 +15,15 @@ endif
 
 all: $(PDF)
 
-$(PDF): $(REQUIRE) FORCE
+$(PDF): images $(REQUIRE) FORCE
 	$(LATEX) $(ARGS) $(PAPER).tex
 	cp $(PDF) ../$(LAB)/密码学实验-$(LAB).pdf
+
+images:
+	-cp -r ../$(LAB)/*.assets .
 
 clean:
 	-rm -rf $(TEMP)
 
 FORCE:
-.PHONY: all clean FORCE
+.PHONY: all clean images FORCE

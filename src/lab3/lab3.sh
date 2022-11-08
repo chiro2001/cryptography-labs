@@ -26,6 +26,7 @@ function fetch() {
   curl -s "$1" | ./totext.py
 }
 
+# 在本地直接启动实验环境
 # host=www.seedlab-hashlen.com
 host=localhost
 port=80
@@ -112,9 +113,10 @@ done
 rm p3
 gcc ${proc_file} -lcrypto -o p3 -Wno-deprecated-declarations
 mac=$(./p3)
+mac=6570b426f9dcf250193abd605d1dbc85296c04cb603ee590b44661121dcac0d7
 echo "new mac is ${mac}"
-mac_slice=$(echo -n "${key}:${payload_ext}" | python3 urldecode.py | sha256sum | awk '{print $1}')
-echo "mac slice: ${mac_slice} hash(${key}:${payload_ext})"
+# mac_slice=$(echo -n "${key}:${payload_ext}" | python3 urldecode.py | sha256sum | awk '{print $1}')
+# echo "mac slice: ${mac_slice} hash(${key}:${payload_ext})"
 mac_check=$(echo -n "${key}:${payload_ext}${cmd}" | python3 urldecode.py | sha256sum | awk '{print $1}')
 echo "mac should be ${mac_check} hash("${key}":"${payload_ext}${cmd}")"
 # if [ "${mac_check}" != "${mac}" ]; then
@@ -127,7 +129,7 @@ echo "$result"
 failed_msg="Sorry"
 if [[ "${result}" =~ "${failed_msg}" ]]; then
   echo "Failed!"
-  # read
+  read
 else
   echo "Can visit results now, enter to leave"
   read
