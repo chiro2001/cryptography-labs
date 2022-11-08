@@ -31,7 +31,7 @@ host=localhost
 port=80
 port=8000
 prefix="http://${host}:${port}/?"
-name=QichenWAN
+name=liangxinrong
 
 echo "Starting flask environmemnt..."
 FLASK_APP=./Labsetup/image_flask/app/www flask run --host ${host} --port ${port} & pid=$!
@@ -40,7 +40,7 @@ sleep 1
 # read
 echo "Environment startted to ${prefix}, pid = ${pid}"
 
-echo "#Test"
+echo "# Test"
 fetch "${prefix}myname=JohnDoe&uid=1001&lstcmd=1&mac=7d5f750f8b3203bd963d75217c980d139df5d0e50d19d6dfdb8a7de1f8520ce3"
 
 function hash_payload() {
@@ -88,13 +88,9 @@ paddings=$(python3 compute_padding.py ${payload})
 paddings_decoded=$(urldecode "${paddings}")
 echo "paddings: ${paddings}, decoded: ${paddings_decoded}"
 payload_ext=$(echo "${paddings}" | sed "s/AAAAAA\://g")
-# payload_ext="${payload}%32%20%00%32%32"
 echo "hash: ${key}:${payload_ext}"
 
-# mac0=$(hash_payload "${key}" "${payload_ext}")
-# mac0=$(echo -n "${key}:${payload_ext}" | python3 urldecode.py | sha256sum | awk '{print $1}')
 mac0=$(echo -n "****************************************************************" | sha256sum | awk '{print $1}')
-# mac0="4ac5b1038ff9a79b5ed7a8cbbb97f2b658871d6a02c0d12e1aec4bba51ec19d9"
 echo "original mac is ${mac0} hash("${key}":"${payload_ext}")"
 i=1
 # i=8
@@ -117,16 +113,15 @@ rm p3
 gcc ${proc_file} -lcrypto -o p3 -Wno-deprecated-declarations
 mac=$(./p3)
 echo "new mac is ${mac}"
+mac_slice=$(echo -n "${key}:${payload_ext}" | python3 urldecode.py | sha256sum | awk '{print $1}')
+echo "mac slice: ${mac_slice} hash(${key}:${payload_ext})"
 mac_check=$(echo -n "${key}:${payload_ext}${cmd}" | python3 urldecode.py | sha256sum | awk '{print $1}')
-# mac_check=$(hash_payload "${key}" "${payload_ext}${cmd}")
-# echo -n "$(urldecode "%32%00%32")" > message
-# echo -n "\x32\x00\x32" > message
 echo "mac should be ${mac_check} hash("${key}":"${payload_ext}${cmd}")"
-if [ "${mac_check}" != "${mac}" ]; then
-  echo "Failed!"
-  kill ${pid}
-  return
-fi
+# if [ "${mac_check}" != "${mac}" ]; then
+#   echo "Failed!"
+#   kill ${pid}
+#   return
+# fi
 result=$(fetch "${prefix}${payload_ext}${cmd}&mac=${mac}")
 echo "$result"
 failed_msg="Sorry"
