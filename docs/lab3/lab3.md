@@ -122,7 +122,7 @@ secret.txt
 请发送一个 download 命令到服务器,myname 的信息修改为你自己的姓名拼音,并且记录你得到的
 响应内容(截图显示)。
 
-```Bash
+```sh
 echo "# task 1"
 cmd="&download=secret.txt"
 res=$(hashme ${cmd})
@@ -155,8 +155,13 @@ Congratulations! You get the MAC right.
 
 ### 任务2
 
-为消息`<key>:myname=<name>&uid=<uid>&lstcmd=1`创建对应 padding,其中 `<key>` 和 `<uid>`
-的实际内容应该从 `LabHome/key.txt` 文件中得到，`myname` 依然用你自己的姓名。
+为消息
+
+```
+<key>:myname=<name>&uid=<uid>&lstcmd=1
+```
+
+创建对应 padding，其中 `<key>` 和 `<uid>`的实际内容应该从 `LabHome/key.txt` 文件中得到，`myname` 依然用你自己的姓名。
 
 ```sh
 echo "# task 2"
@@ -246,7 +251,7 @@ fi
 123456:myname=liangxinrong&uid=1001&lstcmd=1%80%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%01%60&download=secret.txt
 ```
 
-产生的 MAC: `6570b426f9dcf250193abd605d1dbc85296c04cb603ee590b44661121dcac0d7`
+产生的 MAC: 6570b426f9dcf250193abd605d1dbc85296c04cb603ee590b44661121dcac0d7
 
 ```sh
 # task 3
@@ -288,9 +293,11 @@ Can visit results now, enter to leave
 
 对请求
 
-````myname=liangxinrong&uid=1001&lstcmd=1```
+```
+myname=liangxinrong&uid=1001&lstcmd=1
+```
 
-计算 HMAC：`635812b942f6fc4b50635d130a3084cb45ce0c8e69cdbdbccae60badd4a64411`
+计算 HMAC：635812b942f6fc4b50635d130a3084cb45ce0c8e69cdbdbccae60badd4a64411
 
 验证结果：
 
@@ -298,9 +305,9 @@ Can visit results now, enter to leave
 
 另外构造攻击请求：
 
-````
+```
 http://localhost:8080/?myname=liangxinrong&uid=1001&lstcmd=1%80%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%00%01%60&download=secret.txt
-````
+```
 
 其 MAC 为：`293175a6cdf28f126f0f0020f98120d197e9eb1dba173b5de48c73dea7255ee2`
 

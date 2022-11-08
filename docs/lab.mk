@@ -1,3 +1,3 @@
-ifndef LAB
-	LAB := lab3
-endif
+LAB ?= lab3
+NAME ?= 梁鑫嵘
+STUID ?= 200110619

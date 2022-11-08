@@ -1,7 +1,7 @@
 CMAKE := cmake
 BUILD_DIR := build
 BUILD_TYPE := Debug
-LAB := 1
+include docs/lab.mk
 
 all:
 	$(CMAKE) -B $(BUILD_DIR) -S . -D CMAKE_BUILD_TYPE=$(BUILD_TYPE)
@@ -17,6 +17,7 @@ submit: docs
 	@cd ../.submit && zip ../submit.zip -r .
 	@rm -rf ../.submit
 	@mv ../submit.zip .
+	-@mv submit.zip $(STUID)_$(NAME)_密码学基础_实验$(LAB/lab/).zip
 
 run: all
 	cd $(BUILD_DIR) && ctest
