@@ -1,3 +1,3 @@
 ifndef LAB
-	LAB := lab2
+	LAB := lab3
 endif

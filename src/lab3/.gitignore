@@ -1,0 +1,7 @@
+Lab*
+*.c
+*.py
+p3
+!totext.py
+!lab3.sh
+!urldecode.py
