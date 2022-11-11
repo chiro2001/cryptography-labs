@@ -204,6 +204,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "elgamal"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "clap",
+ "crossbeam-channel",
+ "indicatif",
+ "lazy_static",
+ "mut_static",
+ "num",
+ "num-bigint",
+ "num-traits",
+ "num_cpus",
+ "rand",
+ "rsa",
+ "time 0.3.17",
+]
+
+[[package]]
 name = "encode_unicode"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -284,16 +304,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49409df3e3bf0856b916e2ceaca09ee28e6871cf7d9ce97a692cacfdb2a25a47"
 dependencies = [
  "wasm-bindgen",
-]
-
-[[package]]
-name = "lab4"
-version = "0.1.0"
-dependencies = [
- "num",
- "num-bigint",
- "num-traits",
- "rsa",
 ]
 
 [[package]]
