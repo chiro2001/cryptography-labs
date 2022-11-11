@@ -618,6 +618,7 @@ dependencies = [
 [[package]]
 name = "rsa"
 version = "0.1.0"
+source = "git+https://github.com/chiro2001/rsa-rs?branch=master#c0638db1fe3bc82810f9b7080fcb2c2ed235b180"
 dependencies = [
  "base64",
  "chrono",
