@@ -73,23 +73,6 @@ impl ElGamalTrait for ElGamal {
         // }
     }
 
-    fn hash(src: &Vec<u8>) -> BigInt {
-        let decode_radix = 10;
-        let hashed_string =
-            if decode_radix == 16 {
-                src.digest()
-            } else {
-                BigInt::from_str_radix(String::from_utf8(src.clone()).unwrap().as_str(), 10)
-                    .unwrap().to_bytes_le().1.digest()
-            };
-        let hashed = BigInt::from_str_radix(&hashed_string, 16).unwrap();
-        if !SILENT.read().unwrap().clone() {
-            println!("hash({}_{}) = {}", String::from_utf8(src.clone()).unwrap(), decode_radix, hashed);
-        }
-        hashed
-        // 100.to_bigint().unwrap()
-    }
-
     fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign {
         let mut rng = rand::thread_rng();
         let p = &key.public.p;
@@ -113,6 +96,23 @@ impl ElGamalTrait for ElGamal {
                      k, r, p, p_1, k_inv, hashed, s, g);
         }
         ElGamalSign { r, s }
+    }
+
+    fn hash(src: &Vec<u8>) -> BigInt {
+        let decode_radix = 10;
+        let hashed_string =
+            if decode_radix == 16 {
+                src.digest()
+            } else {
+                BigInt::from_str_radix(String::from_utf8(src.clone()).unwrap().as_str(), 10)
+                    .unwrap().to_bytes_le().1.digest()
+            };
+        let hashed = BigInt::from_str_radix(&hashed_string, 16).unwrap();
+        if !SILENT.read().unwrap().clone() {
+            println!("hash({}_{}) = {}", String::from_utf8(src.clone()).unwrap(), decode_radix, hashed);
+        }
+        hashed
+        // 100.to_bigint().unwrap()
     }
 
     fn elgamal_check(data: &Vec<u8>, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool {
