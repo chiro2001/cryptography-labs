@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
-use crate::rsa::lib::keys::{BASE64_SPLIT, KeyError};
-use crate::rsa::lib::keys::key_data::KeyData;
+use crate::lib::keys::{BASE64_SPLIT, KeyError};
+use crate::lib::keys::key_data::KeyData;
 
 struct KeyWriter {
     writer: Box<dyn Write>,
@@ -103,9 +103,9 @@ impl KeyData {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
-    use crate::rsa::lib::config::CONFIG_DEF;
-    use crate::rsa::lib::keys::key_data::KeyData;
-    use crate::rsa::lib::keys::key_pair::KeyPair;
+    use crate::lib::config::CONFIG_DEF;
+    use crate::lib::keys::key_data::KeyData;
+    use crate::lib::keys::key_pair::KeyPair;
 
     #[test]
     fn key_pair_save_test() -> Result<(), Box<dyn Error>> {

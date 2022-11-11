@@ -3,6 +3,11 @@ pub mod key_reader;
 pub mod key_data;
 pub mod key_pair;
 
+pub use key_pair::*;
+pub use key_reader::*;
+pub use key_writer::*;
+pub use key_data::*;
+
 use num_bigint::BigInt;
 use num_traits::Zero;
 

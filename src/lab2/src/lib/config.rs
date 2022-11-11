@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use mut_static::MutStatic;
-use crate::rsa::RSA;
 use num_cpus;
+use crate::RSA;
 
 lazy_static! {
     pub static ref CONFIG_DEF: RSA = RSA {

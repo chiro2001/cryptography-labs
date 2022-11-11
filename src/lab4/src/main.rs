@@ -1,6 +1,5 @@
-mod rsa;
-
+use rsa::*;
 fn main() {
     println!("Hello, world!");
-    rsa::
+    // rsa_echo();
 }

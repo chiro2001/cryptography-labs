@@ -1,4 +1,4 @@
-use crate::rsa::lib::keys::*;
+use crate::lib::keys::*;
 
 #[derive(Debug)]
 pub struct KeyData {
