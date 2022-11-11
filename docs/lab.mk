@@ -1,3 +1,3 @@
-LAB ?= lab3
+LAB ?= lab4
 NAME ?= 梁鑫嵘
 STUID ?= 200110619
