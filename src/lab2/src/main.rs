@@ -4,7 +4,7 @@ mod rsa;
 
 use std::error::Error;
 use clap::Parser;
-use crate::rsa::config::SILENT;
+use crate::rsa::lib::config::SILENT;
 use crate::rsa::RSA;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -28,8 +28,8 @@ mod tests {
     use num_traits::One;
     use crate::RSA;
     use crate::rsa::RunMode;
-    use crate::rsa::config::CONFIG_DEF;
-    use crate::rsa::keys::{Key, KeySet};
+    use crate::rsa::lib::config::CONFIG_DEF;
+    use crate::rsa::lib::keys::{Key, KeySet};
 
     #[test]
     fn gen_prime() -> Result<(), Box<dyn Error>> {

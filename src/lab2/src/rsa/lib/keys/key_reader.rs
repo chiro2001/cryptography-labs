@@ -2,8 +2,8 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, Cursor, Read, Seek, SeekFrom};
 use num_bigint::{BigInt, Sign};
-use crate::rsa::keys::{KeyError, Key};
-use crate::rsa::keys::key_data::KeyData;
+use crate::rsa::lib::keys::{KeyError, Key};
+use crate::rsa::lib::keys::key_data::KeyData;
 
 struct KeyReader {
     reader: Box<dyn Read>,
@@ -153,9 +153,9 @@ mod tests {
     use std::error::Error;
     use std::fs::File;
     use std::io::Read;
-    use crate::rsa::keys::key_data::KeyData;
-    use crate::rsa::keys::key_pair::KeyPair;
-    use crate::rsa::keys::key_reader::KeyReader;
+    use crate::rsa::lib::keys::key_data::KeyData;
+    use crate::rsa::lib::keys::key_pair::KeyPair;
+    use crate::rsa::lib::keys::key_reader::KeyReader;
 
     #[test]
     fn test_binary() -> Result<(), Box<dyn Error>> {

@@ -8,15 +8,13 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use num_bigint::{BigInt, Sign, ToBigInt, ToBigUint};
 use num_traits::{One, Pow, Zero};
 use indicatif::{ProgressBar, ProgressStyle};
-use prime_gen::PrimeError;
-use crate::rsa::config::CONFIG_DEF;
-use crate::rsa::keys::{Key, KeySet};
-use crate::rsa::keys::key_data::KeyData;
-use crate::rsa::keys::key_pair::KeyPair;
+use lib::prime_gen::PrimeError;
+use lib::config::CONFIG_DEF;
+use lib::keys::{Key, KeySet};
+use lib::keys::key_data::KeyData;
+use lib::keys::key_pair::KeyPair;
 
-pub mod config;
-pub mod prime_gen;
-pub mod keys;
+pub(crate) mod lib;
 
 #[derive(Debug, Clone)]
 pub enum RunMode {

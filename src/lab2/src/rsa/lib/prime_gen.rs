@@ -6,10 +6,10 @@ use chrono::Local;
 use lazy_static::lazy_static;
 use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
 use num_traits::*;
-use crate::rsa::prime_gen::PrimeError::Timeout;
+use crate::rsa::lib::prime_gen::PrimeError::Timeout;
 use crate::RSA;
 use mut_static::MutStatic;
-use crate::rsa::config::SILENT;
+use crate::rsa::lib::config::SILENT;
 
 pub enum PrimeError {
     Timeout(i64)
