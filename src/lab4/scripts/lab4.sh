@@ -7,7 +7,8 @@ echo "密码学实验4"
 key="key"
 file="data/lab4-message.txt"
 fake="data/lab4-message-fake.txt"
-R_BASE="cargo run -- --binary -k $key"
+# R_BASE="cargo run -- --binary -k $key"
+R_BASE="cargo run -- -k $key"
 R="$R_BASE -i $file"
 
 rm $key*
