@@ -3,10 +3,8 @@ use clap::Parser;
 pub use elgamal::*;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let elgamal = ElGamal::parse();
-    // let prime = RSA::generate_one_prime(&0.to_biguint().unwrap(), &1000.to_biguint().unwrap(), 20, 3000)?;
-    // println!("prime = {}", prime);
-    Ok(())
+    let mut r: ElGamal = ElGamal::parse();
+    r.run_elgamal()
 }
 
 #[cfg(test)]
@@ -63,5 +61,12 @@ mod tests {
         let check = ElGamal::elgamal_check(&data, &sign, &key.public);
         assert!(check);
         Ok(())
+    }
+
+    #[test]
+    fn test_key_save() -> Result<(), Box<dyn Error>> {
+        let r: &ElGamal = CONFIG_DEF.get();
+        let mut key = r.elgamal_generate_key();
+        key.save("data/test".to_string(), true)
     }
 }

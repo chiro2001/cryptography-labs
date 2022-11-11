@@ -3,11 +3,11 @@ use std::io::{Cursor, Read, Write};
 use crate::rsa::keys::{BASE64_SPLIT, KeyError};
 use crate::rsa::keys::key_data::KeyData;
 
-struct KeyWriter {
+pub struct KeyWriter {
     writer: Box<dyn Write>,
     buffer: Vec<u8>,
-    header: String,
-    footer: String,
+    pub header: String,
+    pub footer: String,
 }
 
 impl From<Box<(dyn Write + 'static)>> for KeyWriter {

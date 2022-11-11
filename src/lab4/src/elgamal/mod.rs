@@ -1,3 +1,4 @@
+use std::error::Error;
 use num::Integer;
 use num_bigint::{BigInt, RandBigInt, ToBigInt, ToBigUint};
 use num_traits::{Num, One, Pow, Signed};
@@ -15,11 +16,20 @@ pub use sign::*;
 
 pub type ElGamal = RSA;
 
+#[derive(Debug, Clone)]
+pub enum RunMode {
+    Generate,
+    Sign,
+    Check,
+}
+
 pub trait ElGamalTrait {
     fn elgamal_generate_key(&self) -> ElGamalKey;
     fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign;
     fn hash(src: &Vec<u8>) -> BigInt;
     fn elgamal_check(data: &Vec<u8>, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool;
+    fn elgamal_run_mode(&self) -> RunMode;
+    fn run_elgamal(&mut self) -> Result<(), Box<dyn Error>>;
 }
 
 impl ElGamalTrait for ElGamal {
@@ -124,5 +134,31 @@ impl ElGamalTrait for ElGamal {
             println!("left =?= right  |  {} =?= {}", &left, &right);
         }
         left == right
+    }
+
+    fn elgamal_run_mode(&self) -> RunMode {
+        match self.mode.as_str() {
+            "generate" => Ok(RunMode::Generate),
+            "sign" => Ok(RunMode::Sign),
+            "check" => Ok(RunMode::Check),
+            _ => Err("Unknown run mode! available: generate(default), sign, check")
+        }.unwrap()
+    }
+
+    fn run_elgamal(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.output == "stdout" {
+            self.silent = true
+        }
+        match self.elgamal_run_mode() {
+            RunMode::Generate => {
+                let r: &ElGamal = CONFIG_DEF.get();
+                let key = r.elgamal_generate_key();
+                if !self.silent { println!("generated key: {:#?}", key); }
+
+            }
+            RunMode::Sign => {}
+            RunMode::Check => {}
+        }
+        Ok(())
     }
 }
