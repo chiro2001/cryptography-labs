@@ -17,6 +17,13 @@ mod tests {
     use elgamal::*;
     use sha256::Sha256Digest;
 
+    fn get_stu_id_data(r: &ElGamal) -> Vec<u8> {
+        let mut reader = r.reader();
+        let mut data: [u8; 9] = [0; 9];
+        reader.read(&mut data).unwrap();
+        data.to_vec()
+    }
+
     #[test]
     fn test_generate_key() -> Result<(), Box<dyn Error>> {
         let r: &ElGamal = CONFIG_DEF.get();
@@ -28,11 +35,20 @@ mod tests {
     #[test]
     fn test_hash_data() -> Result<(), Box<dyn Error>> {
         let r: &ElGamal = CONFIG_DEF.get();
-        let mut reader = r.reader();
-        let mut data: [u8; 9] = [0; 9];
-        reader.read(&mut data).unwrap();
+        let data = get_stu_id_data(&r);
         let val = data.digest();
-        println!("hash({}) = {}", String::from_utf8(data.to_vec()).unwrap(), val);
+        println!("hash({}) = {}", String::from_utf8(data).unwrap(), val);
+        Ok(())
+    }
+
+    #[test]
+    fn test_sign_data() -> Result<(), Box<dyn Error>> {
+        let r: &ElGamal = CONFIG_DEF.get();
+        let data = get_stu_id_data(&r);
+        let key = r.elgamal_generate_key();
+        println!("generated key: {:#?}", key);
+        let sign = ElGamal::elgamal_sign(&data, &key);
+        println!("generated sign: {:#?}", sign);
         Ok(())
     }
 }

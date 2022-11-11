@@ -1,7 +1,10 @@
-use num_bigint::{RandBigInt, ToBigInt, ToBigUint};
-use num_traits::{One, Pow};
+use std::ptr::hash;
+use num::Integer;
+use num_bigint::{BigInt, RandBigInt, ToBigInt, ToBigUint};
+use num_traits::{Num, One, Pow, ToPrimitive};
 use rsa::RSA;
 use crate::elgamal::keys::ElGamalKey;
+use sha256::Sha256Digest;
 
 pub mod config;
 pub mod keys;
@@ -15,6 +18,8 @@ pub type ElGamal = RSA;
 
 pub trait ElGamalTrait {
     fn elgamal_generate_key(&self) -> ElGamalKey;
+    fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign;
+    fn hash(src: &Vec<u8>) -> BigInt;
 }
 
 impl ElGamalTrait for ElGamal {
@@ -52,9 +57,42 @@ impl ElGamalTrait for ElGamal {
             if (!g.modpow(&2.to_bigint().unwrap(), &s).is_one()) && (!g.modpow(&p, &s).is_one()) { break; }
         }
         // g = 2.to_bigint().unwrap();
-        let x = rng.gen_biguint_range(&1.to_biguint().unwrap(), &p_1).to_bigint().unwrap();
+        let x = rng.gen_biguint_range(&2.to_biguint().unwrap(), &p_1).to_bigint().unwrap();
         // let x = 127.to_bigint().unwrap();
         let y = g.modpow(&x, &p);
         ElGamalKey { public: ElGamalPublicKey { p: p.clone(), g, y }, private: ElGamalPrivateKey { x } }
+    }
+
+    fn hash(src: &Vec<u8>) -> BigInt {
+        let decode_radix = 10;
+        let hashed_string =
+            if decode_radix == 16 {
+                src.digest()
+            } else {
+                BigInt::from_str_radix(String::from_utf8(src.clone()).unwrap().as_str(), 10)
+                    .unwrap().to_bytes_le().1.digest()
+            };
+        let hashed = BigInt::from_str_radix(&hashed_string, 16).unwrap();
+        println!("hash({}) = {}", String::from_utf8(src.clone()).unwrap(), hashed);
+        hashed
+    }
+
+    fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign {
+        let mut rng = rand::thread_rng();
+        let p = &key.public.p;
+        let g = &key.public.g;
+        let p_1 = p.clone() - 1.to_bigint().unwrap();
+        let mut k;
+        loop {
+            k = rng.gen_biguint_range(&1.to_biguint().unwrap(), &p.to_biguint().unwrap()).to_bigint().unwrap();
+            if k.gcd(&p_1).is_one() { break; }
+        }
+        let r = g.modpow(&k, p);
+        let k_inv = RSA::mod_reverse(&k, &p_1);
+        let hashed = Self::hash(data);
+        let s = (&k_inv * (&hashed - (&key.private.x * &r))) % &p_1;
+        println!("k = {}, r = {}, p = {}, p_1 = {}, k_inv = {}, hashed = {}, s = {}, g = {}",
+                 k, r, p, p_1, k_inv, hashed, s, g);
+        ElGamalSign { r, s }
     }
 }
