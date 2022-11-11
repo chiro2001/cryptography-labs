@@ -16,10 +16,16 @@ mod tests {
     use elgamal::*;
 
     #[test]
-    fn generate_key() -> Result<(), Box<dyn Error>> {
+    fn test_generate_key() -> Result<(), Box<dyn Error>> {
         let r: &ElGamal = CONFIG_DEF.get();
         let key = r.elgamal_generate_key();
         println!("generated key: {:#?}", key);
+        Ok(())
+    }
+
+    #[test]
+    fn test_hash_data() -> Result<(), Box<dyn Error>> {
+
         Ok(())
     }
 }

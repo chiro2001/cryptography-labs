@@ -105,7 +105,7 @@ impl RSA {
             "decode" => Ok(RunMode::Decode),
             "generate" => Ok(RunMode::Generate),
             "test" => Ok(RunMode::Test),
-            _ => Err(())
+            _ => Err("Unknown run mode! available: generate(default), encode, decode, test")
         }.unwrap()
     }
 
