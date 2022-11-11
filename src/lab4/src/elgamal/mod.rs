@@ -9,10 +9,12 @@ use sha256::Sha256Digest;
 pub mod config;
 pub mod keys;
 pub mod sign;
+pub mod key_reader;
 
 pub use config::*;
 pub use keys::*;
 pub use sign::*;
+pub use key_reader::*;
 
 pub type ElGamal = RSA;
 

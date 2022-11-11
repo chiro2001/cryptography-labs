@@ -5,9 +5,9 @@ use num_bigint::{BigInt, Sign};
 use crate::rsa::keys::{KeyError, Key};
 use crate::rsa::keys::key_data::KeyData;
 
-struct KeyReader {
+pub struct KeyReader {
     reader: Box<dyn Read>,
-    binary: Option<bool>,
+    pub binary: Option<bool>,
     temp: [u8; 8],
     read_buf: Vec<u8>,
     res_buf: Vec<u8>,
@@ -29,6 +29,19 @@ impl KeyReader {
             if !s.binary.unwrap() { println!("res: {:?}", String::from_utf8(s.res_buf.clone())); }
         }
         s
+    }
+
+    pub fn read_all(&mut self) -> Vec<u8> {
+        let mut content = Vec::new();
+        if !self.binary.unwrap() {
+            let mut data_reader = base64::read::DecoderReader::new(
+                self,
+                base64::STANDARD);
+            data_reader.read_to_end(&mut content).unwrap();
+        } else {
+            self.read_to_end(&mut content).unwrap();
+        }
+        content
     }
 
     fn parse_text(&mut self) -> Result<(), KeyError> {
@@ -98,21 +111,13 @@ impl Read for KeyReader {
 
 impl From<String> for KeyData {
     fn from(path: String) -> Self {
-        let mut content = Vec::new();
         let file = File::open(path);
         match file {
             Err(_) => return KeyData::default(),
             _ => {}
         };
         let mut key_reader = KeyReader::new(Box::new(file.unwrap()));
-        if !key_reader.binary.unwrap() {
-            let mut data_reader = base64::read::DecoderReader::new(
-                &mut key_reader,
-                base64::STANDARD);
-            data_reader.read_to_end(&mut content).unwrap();
-        } else {
-            key_reader.read_to_end(&mut content).unwrap();
-        }
+        let mut content = key_reader.read_all();
         let mut cur = Cursor::new(&content);
         let mut len_base: [u8; 4] = [0; 4];
         let mut len_m: [u8; 4] = [0; 4];

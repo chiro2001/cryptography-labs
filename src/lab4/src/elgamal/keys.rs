@@ -2,18 +2,27 @@ use std::error::Error;
 use std::io::{Cursor, Read, Write};
 use std::fs::File;
 use num_bigint::BigInt;
+use num_traits::Zero;
 use rsa::keys::KeyWriter;
 
 pub trait Savable {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>>;
 }
 
-trait Loadable {}
+trait Loadable {
+    fn load(&mut self, path: String) -> Self
+}
 
 #[derive(Debug)]
 pub struct ElGamalKey {
     pub public: ElGamalPublicKey,
     pub private: ElGamalPrivateKey,
+}
+
+impl Default for ElGamalKey {
+    fn default() -> Self {
+        Self { public: Default::default(), private: Default::default() }
+    }
 }
 
 #[derive(Debug)]
@@ -23,9 +32,25 @@ pub struct ElGamalPublicKey {
     pub y: BigInt,
 }
 
+impl Default for ElGamalPublicKey {
+    fn default() -> Self {
+        Self {
+            p: BigInt::zero(),
+            g: BigInt::zero(),
+            y: BigInt::zero(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ElGamalPrivateKey {
     pub x: BigInt,
+}
+
+impl Default for ElGamalPrivateKey {
+    fn default() -> Self {
+        Self { x: BigInt::zero() }
+    }
 }
 
 fn get_file_writer(path: String, base64_output: bool) -> Box<dyn Write> {
