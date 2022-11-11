@@ -1,10 +1,13 @@
-use std::error::Error;
+use std::error::{Error};
+use std::{io};
 use num::Integer;
-use num_bigint::{BigInt, RandBigInt, ToBigInt, ToBigUint};
-use num_traits::{Num, One, Pow, Signed};
+use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt, ToBigUint};
+use num_traits::{One, Pow, Signed, Zero};
 use rsa::RSA;
 use crate::elgamal::keys::ElGamalKey;
-use sha256::Sha256Digest;
+use sha2::Sha256;
+use sha2::Digest;
+use clap::Parser;
 
 pub mod config;
 pub mod keys;
@@ -15,6 +18,30 @@ pub use config::*;
 pub use keys::*;
 pub use sign::*;
 pub use key_reader::*;
+
+use rsa::*;
+
+rsa_t!(CONFIG_DEF, ElGamalFake);
+
+impl From<ElGamalFake> for ElGamal {
+    fn from(e: ElGamalFake) -> Self {
+        Self {
+            mode: e.mode,
+            key: e.key,
+            comment: e.comment,
+            binary: e.binary,
+            input: e.input,
+            output: e.output,
+            prime_min: e.prime_min,
+            prime_max: e.prime_max,
+            rounds: e.rounds,
+            time_max: e.time_max,
+            silent: e.silent,
+            retry: e.retry,
+            threads: e.threads,
+        }
+    }
+}
 
 pub type ElGamal = RSA;
 
@@ -27,9 +54,9 @@ pub enum RunMode {
 
 pub trait ElGamalTrait {
     fn elgamal_generate_key(&self) -> ElGamalKey;
-    fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign;
-    fn hash(src: &Vec<u8>) -> BigInt;
-    fn elgamal_check(data: &Vec<u8>, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool;
+    fn elgamal_sign(&self, key: &ElGamalKey) -> ElGamalSign;
+    fn data_hashed(&self) -> BigInt;
+    fn elgamal_check(&self, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool;
     fn elgamal_run_mode(&self) -> RunMode;
     fn run_elgamal(&mut self) -> Result<(), Box<dyn Error>>;
 }
@@ -85,7 +112,7 @@ impl ElGamalTrait for ElGamal {
         // }
     }
 
-    fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign {
+    fn elgamal_sign(&self, key: &ElGamalKey) -> ElGamalSign {
         let mut rng = rand::thread_rng();
         let p = &key.public.p;
         let g = &key.public.g;
@@ -98,7 +125,7 @@ impl ElGamalTrait for ElGamal {
         // k = 213.to_bigint().unwrap();
         let r = g.modpow(&k, p);
         let k_inv = RSA::mod_reverse(&k, &p_1);
-        let hashed = Self::hash(data);
+        let hashed = self.data_hashed();
         let mut s = (&k_inv * (&hashed - (&key.private.x * &r))) % &p_1;
         while s.is_negative() {
             s = s + &p_1;
@@ -110,25 +137,17 @@ impl ElGamalTrait for ElGamal {
         ElGamalSign { r, s }
     }
 
-    fn hash(src: &Vec<u8>) -> BigInt {
-        let decode_radix = 10;
-        let hashed_string =
-            if decode_radix == 16 {
-                src.digest()
-            } else {
-                BigInt::from_str_radix(String::from_utf8(src.clone()).unwrap().as_str(), 10)
-                    .unwrap().to_bytes_le().1.digest()
-            };
-        let hashed = BigInt::from_str_radix(&hashed_string, 16).unwrap();
-        if !SILENT.read().unwrap().clone() {
-            println!("hash({}_{}) = {}", String::from_utf8(src.clone()).unwrap(), decode_radix, hashed);
-        }
+    fn data_hashed(&self) -> BigInt {
+        let mut hasher = Sha256::new();
+        let mut reader = self.reader();
+        let _n = io::copy(&mut reader, &mut hasher).unwrap();
+        let hash = hasher.finalize();
+        let hashed = BigInt::from_bytes_le(Sign::Plus, &hash);
         hashed
-        // 100.to_bigint().unwrap()
     }
 
-    fn elgamal_check(data: &Vec<u8>, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool {
-        let hashed = Self::hash(data);
+    fn elgamal_check(&self, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool {
+        let hashed = self.data_hashed();
         let left = (&key.y.modpow(&sign.r, &key.p) * &sign.r.modpow(&sign.s, &key.p)) % &key.p;
         let right = key.g.modpow(&hashed, &key.p);
         if !SILENT.read().unwrap().clone() {
@@ -153,12 +172,14 @@ impl ElGamalTrait for ElGamal {
         }
         match self.elgamal_run_mode() {
             RunMode::Generate => {
-                let r: &ElGamal = CONFIG_DEF.get();
-                let mut key = r.elgamal_generate_key();
+                let mut key = self.elgamal_generate_key();
                 if !self.silent { println!("generated key: {:#?}", key); }
                 key.save(self.key.clone(), !self.binary).unwrap();
             }
-            RunMode::Sign => {}
+            RunMode::Sign => {
+                let key = ElGamalKey::from(self.key.clone());
+                assert_ne!(key.private.x, BigInt::zero(), "Private key must be provided!");
+            }
             RunMode::Check => {}
         }
         Ok(())

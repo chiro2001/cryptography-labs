@@ -117,7 +117,7 @@ impl From<String> for KeyData {
             _ => {}
         };
         let mut key_reader = KeyReader::new(Box::new(file.unwrap()));
-        let mut content = key_reader.read_all();
+        let content = key_reader.read_all();
         let mut cur = Cursor::new(&content);
         let mut len_base: [u8; 4] = [0; 4];
         let mut len_m: [u8; 4] = [0; 4];

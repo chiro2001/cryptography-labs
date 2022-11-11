@@ -12,7 +12,7 @@ lazy_static! {
         input: String::from("data/lab4-message.txt"),
         output: String::from("stdout"),
         // output: String::from("data/data.tmp"),
-        prime_min: 14, prime_max: 16,
+        prime_min: 10, prime_max: 12,
         binary: false,
         rounds: 10,
         time_max: 1000,

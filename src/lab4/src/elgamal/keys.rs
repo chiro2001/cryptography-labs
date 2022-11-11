@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::io::{Cursor, Read, Write};
+use std::io::{Write};
 use std::fs::File;
 use num_bigint::BigInt;
 use num_traits::Zero;

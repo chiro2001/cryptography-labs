@@ -25,35 +25,42 @@ pub enum RunMode {
     Test,
 }
 
+#[macro_export]
+macro_rules! rsa_t {
+    ($CONFIG: expr, $NAME: ident) => {
 #[derive(Debug, Parser)]
-pub struct RSA {
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode")]
+pub struct $NAME {
+    #[clap(short, long, value_parser, default_value = $CONFIG.mode.as_str(), help = "Run mode")]
     pub mode: String,
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.key.as_str(), help = "Key path, generate/detect `path' and `path.pub'")]
+    #[clap(short, long, value_parser, default_value = $CONFIG.key.as_str(), help = "Key path, generate/detect `path' and `path.pub'")]
     pub key: String,
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.comment.as_str(), help = "Attach comment to key files")]
+    #[clap(short, long, value_parser, default_value = $CONFIG.comment.as_str(), help = "Attach comment to key files")]
     pub comment: String,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.binary, help = "Output key in binary format")]
+    #[clap(long, value_parser, default_value_t = $CONFIG.binary, help = "Output key in binary format")]
     pub binary: bool,
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.input.as_str(), help = "Input filename")]
+    #[clap(short, long, value_parser, default_value = $CONFIG.input.as_str(), help = "Input filename")]
     pub input: String,
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.output.as_str(), help = "Output filename")]
+    #[clap(short, long, value_parser, default_value = $CONFIG.output.as_str(), help = "Output filename")]
     pub output: String,
-    #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_min, help = "Min prime bits")]
+    #[clap(long, value_parser, required = false, default_value_t = $CONFIG.prime_min, help = "Min prime bits")]
     pub prime_min: u32,
-    #[clap(long, value_parser, required = false, default_value_t = CONFIG_DEF.prime_max, help = "Max prime bits")]
+    #[clap(long, value_parser, required = false, default_value_t = $CONFIG.prime_max, help = "Max prime bits")]
     pub prime_max: u32,
-    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.rounds, help = "Miller Rabin calculate rounds")]
+    #[clap(short, long, value_parser, default_value_t = $CONFIG.rounds, help = "Miller Rabin calculate rounds")]
     pub rounds: u32,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.time_max, help = "Max time in mill seconds that trying to generate a prime")]
+    #[clap(long, value_parser, default_value_t = $CONFIG.time_max, help = "Max time in mill seconds that trying to generate a prime")]
     pub time_max: i64,
-    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.silent, help = "Disable log output")]
+    #[clap(short, long, value_parser, default_value_t = $CONFIG.silent, help = "Disable log output")]
     pub silent: bool,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.retry, help = "Retry when failed to generate primes")]
+    #[clap(long, value_parser, default_value_t = $CONFIG.retry, help = "Retry when failed to generate primes")]
     pub retry: bool,
-    #[clap(short, long, value_parser, default_value_t = CONFIG_DEF.threads, help = "Calculate in <THREADS> threads")]
+    #[clap(short, long, value_parser, default_value_t = $CONFIG.threads, help = "Calculate in <THREADS> threads")]
     pub threads: usize,
 }
+    };
+}
+
+rsa_t!(CONFIG_DEF, RSA);
 
 impl RSA {
     pub fn get(&self) -> &RSA {
