@@ -6,6 +6,20 @@ use num_traits::Zero;
 use rsa::keys::KeyWriter;
 
 pub trait Savable {
+    fn get_file_writer(path: String, base64_output: bool) -> Box<dyn Write> {
+        match base64_output {
+            true => {
+                let mut key_writer = KeyWriter::from(Box::new(File::create(path).unwrap()));
+                key_writer.header = "-----BEGIN ELGAMAL-RS KEY-----".to_string();
+                key_writer.footer = "-----END ELGAMAL-RS KEY-----".to_string();
+                Box::new(base64::write::EncoderWriter::new(
+                    key_writer,
+                    base64::STANDARD))
+            }
+            false => Box::new(File::create(path).unwrap())
+        }
+    }
+
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>>;
 }
 
@@ -46,20 +60,6 @@ pub struct ElGamalPrivateKey {
 impl Default for ElGamalPrivateKey {
     fn default() -> Self {
         Self { x: BigInt::zero() }
-    }
-}
-
-fn get_file_writer(path: String, base64_output: bool) -> Box<dyn Write> {
-    match base64_output {
-        true => {
-            let mut key_writer = KeyWriter::from(Box::new(File::create(path).unwrap()));
-            key_writer.header = "-----BEGIN ELGAMAL-RS KEY-----".to_string();
-            key_writer.footer = "-----END ELGAMAL-RS KEY-----".to_string();
-            Box::new(base64::write::EncoderWriter::new(
-                key_writer,
-                base64::STANDARD))
-        }
-        false => Box::new(File::create(path).unwrap())
     }
 }
 

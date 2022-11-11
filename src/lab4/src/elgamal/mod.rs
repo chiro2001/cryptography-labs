@@ -179,6 +179,8 @@ impl ElGamalTrait for ElGamal {
             RunMode::Sign => {
                 let key = ElGamalKey::from(self.key.clone());
                 assert_ne!(key.private.x, BigInt::zero(), "Private key must be provided!");
+                let sign = self.elgamal_sign(&key);
+                
             }
             RunMode::Check => {}
         }
