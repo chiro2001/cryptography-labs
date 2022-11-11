@@ -1,3 +1,3 @@
 mod elgamal;
 
-pub use elgamal::ElGamal;
+pub use elgamal::*;

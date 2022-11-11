@@ -6,10 +6,13 @@ use crate::elgamal::keys::ElGamalKey;
 pub mod config;
 pub mod keys;
 
+pub use config::*;
+pub use keys::*;
+
 pub type ElGamal = RSA;
 
-trait ElGamalTrait {
-    fn generate_key(&self) -> ElGamalKey;
+pub trait ElGamalTrait {
+    fn elgamal_generate_key(&self) -> ElGamalKey;
 }
 
 impl ElGamalTrait for ElGamal {
@@ -20,7 +23,7 @@ impl ElGamalTrait for ElGamal {
     4.在安全素数s下，随机选取g，1<g<s-1.
     5.如果g^2 mod s!=1 且 g ^ p mod s!=1，那么g就是本原元
      */
-    fn generate_key(&self) -> ElGamalKey {
+    fn elgamal_generate_key(&self) -> ElGamalKey {
         let mut rng = rand::thread_rng();
         // random select big prime `p` and save prime s
         let mut s;
@@ -29,20 +32,27 @@ impl ElGamalTrait for ElGamal {
             let low = 2.to_biguint().unwrap().pow(self.prime_min);
             let high = 2.to_biguint().unwrap().pow(self.prime_max);
             p = self.generate_prime(&low, &high).unwrap();
-            s = p * 2 + 1;
+            s = &p * 2 + 1;
             if RSA::miller_rabin(&s, self.rounds).unwrap() {
                 break;
+            } else {
+                // println!("{} is not prime!", s);
+                // p = 233.to_bigint().unwrap();
+                // s = 467.to_bigint().unwrap();
+                // break;
             }
         }
         // find root for this prime `q`
-        let p_1 = &p - 1.to_bigint().unwrap();
+        let p_1 = (&p - 1.to_bigint().unwrap()).to_biguint().unwrap();
         let mut g;
         loop {
-            g = self.generate_prime(&1.to_biguint().unwrap(), p_1).unwrap();
+            g = self.generate_prime(&1.to_biguint().unwrap(), &p_1).unwrap();
             if (!g.modpow(&2.to_bigint().unwrap(), &s).is_one()) && (!g.modpow(&p, &s).is_one()) { break; }
         }
-        let x = rng.gen_biguint_range(&1.to_biguint().unwrap(), &p - 1).to_bigint().unwrap();
+        // g = 2.to_bigint().unwrap();
+        let x = rng.gen_biguint_range(&1.to_biguint().unwrap(), &p_1).to_bigint().unwrap();
+        // let x = 127.to_bigint().unwrap();
         let y = g.modpow(&x, &p);
-        ElGamalKey { p: p.clone(), g, x, y }
+        ElGamalKey { public: ElGamalPublicKey { p: p.clone(), g, y }, private: ElGamalPrivateKey { x } }
     }
 }
