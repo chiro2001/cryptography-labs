@@ -51,4 +51,17 @@ mod tests {
         println!("generated sign: {:#?}", sign);
         Ok(())
     }
+
+    #[test]
+    fn test_sign_check() -> Result<(), Box<dyn Error>> {
+        let r: &ElGamal = CONFIG_DEF.get();
+        let data = get_stu_id_data(&r);
+        let key = r.elgamal_generate_key();
+        println!("generated key: {:#?}", key);
+        let sign = ElGamal::elgamal_sign(&data, &key);
+        println!("generated sign: {:#?}", sign);
+        let check = ElGamal::elgamal_check(&data, &sign, &key.public);
+        assert!(check);
+        Ok(())
+    }
 }

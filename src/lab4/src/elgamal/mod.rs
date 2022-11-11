@@ -1,7 +1,6 @@
-use std::ptr::hash;
 use num::Integer;
 use num_bigint::{BigInt, RandBigInt, ToBigInt, ToBigUint};
-use num_traits::{Num, One, Pow, ToPrimitive};
+use num_traits::{Num, One, Pow, Signed};
 use rsa::RSA;
 use crate::elgamal::keys::ElGamalKey;
 use sha256::Sha256Digest;
@@ -20,6 +19,7 @@ pub trait ElGamalTrait {
     fn elgamal_generate_key(&self) -> ElGamalKey;
     fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign;
     fn hash(src: &Vec<u8>) -> BigInt;
+    fn elgamal_check(data: &Vec<u8>, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool;
 }
 
 impl ElGamalTrait for ElGamal {
@@ -61,6 +61,16 @@ impl ElGamalTrait for ElGamal {
         // let x = 127.to_bigint().unwrap();
         let y = g.modpow(&x, &p);
         ElGamalKey { public: ElGamalPublicKey { p: p.clone(), g, y }, private: ElGamalPrivateKey { x } }
+        // ElGamalKey {
+        //     public: ElGamalPublicKey {
+        //         p: 467.to_bigint().unwrap(),
+        //         g: 2.to_bigint().unwrap(),
+        //         y: 132.to_bigint().unwrap(),
+        //     },
+        //     private: ElGamalPrivateKey {
+        //         x: 127.to_bigint().unwrap()
+        //     },
+        // }
     }
 
     fn hash(src: &Vec<u8>) -> BigInt {
@@ -73,8 +83,11 @@ impl ElGamalTrait for ElGamal {
                     .unwrap().to_bytes_le().1.digest()
             };
         let hashed = BigInt::from_str_radix(&hashed_string, 16).unwrap();
-        println!("hash({}) = {}", String::from_utf8(src.clone()).unwrap(), hashed);
+        if !SILENT.read().unwrap().clone() {
+            println!("hash({}_{}) = {}", String::from_utf8(src.clone()).unwrap(), decode_radix, hashed);
+        }
         hashed
+        // 100.to_bigint().unwrap()
     }
 
     fn elgamal_sign(data: &Vec<u8>, key: &ElGamalKey) -> ElGamalSign {
@@ -87,12 +100,29 @@ impl ElGamalTrait for ElGamal {
             k = rng.gen_biguint_range(&1.to_biguint().unwrap(), &p.to_biguint().unwrap()).to_bigint().unwrap();
             if k.gcd(&p_1).is_one() { break; }
         }
+        // k = 213.to_bigint().unwrap();
         let r = g.modpow(&k, p);
         let k_inv = RSA::mod_reverse(&k, &p_1);
         let hashed = Self::hash(data);
-        let s = (&k_inv * (&hashed - (&key.private.x * &r))) % &p_1;
-        println!("k = {}, r = {}, p = {}, p_1 = {}, k_inv = {}, hashed = {}, s = {}, g = {}",
-                 k, r, p, p_1, k_inv, hashed, s, g);
+        let mut s = (&k_inv * (&hashed - (&key.private.x * &r))) % &p_1;
+        while s.is_negative() {
+            s = s + &p_1;
+        }
+        if !SILENT.read().unwrap().clone() {
+            println!("k = {}, r = {}, p = {}, p_1 = {}, k_inv = {}, hashed = {}, s = {}, g = {}",
+                     k, r, p, p_1, k_inv, hashed, s, g);
+        }
         ElGamalSign { r, s }
+    }
+
+    fn elgamal_check(data: &Vec<u8>, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool {
+        let hashed = Self::hash(data);
+        let left = (&key.y.modpow(&sign.r, &key.p) * &sign.r.modpow(&sign.s, &key.p)) % &key.p;
+        let right = key.g.modpow(&hashed, &key.p);
+        if !SILENT.read().unwrap().clone() {
+            println!("{}^{} * {}^{} mod {} =?= {}^{} mod {}", key.y, sign.r, sign.r, sign.s, key.p, key.g, hashed, key.p);
+            println!("left =?= right  |  {} =?= {}", &left, &right);
+        }
+        left == right
     }
 }
