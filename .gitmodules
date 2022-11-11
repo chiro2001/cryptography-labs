@@ -1,0 +1,3 @@
+[submodule "src/lab2"]
+	path = src/lab2
+	url = https://github.com/chiro2001/rsa-rs
