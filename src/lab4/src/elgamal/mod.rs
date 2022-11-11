@@ -22,7 +22,7 @@ pub use key_reader::*;
 
 use rsa::*;
 
-rsa_t!(CONFIG_DEF, ElGamalFake);
+rsa_t!(CONFIG_ELG_DEF, ElGamalFake);
 
 impl From<ElGamalFake> for ElGamal {
     fn from(e: ElGamalFake) -> Self {
@@ -187,14 +187,17 @@ impl ElGamalTrait for ElGamal {
 
     fn run_elgamal(&mut self) -> Result<(), Box<dyn Error>> {
         if self.output == "stdout" {
-            self.silent = true
+            // self.silent = true
         }
         SILENT.write().unwrap();
         match self.elgamal_run_mode() {
             RunMode::Generate => {
                 let mut key = self.elgamal_generate_key();
-                if !self.silent { println!("generated key: {:#?}", key); }
                 key.save(self.key.clone(), !self.binary).unwrap();
+                if !self.silent {
+                    println!("generated key set: {:#?}", key);
+                    println!("Save key to file {} {}.pub", self.key, self.key);
+                }
             }
             RunMode::Sign => {
                 let key = ElGamalKey::from(self.key.clone());

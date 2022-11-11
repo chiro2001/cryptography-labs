@@ -5,7 +5,7 @@ use num_cpus;
 use crate::ElGamal;
 
 lazy_static! {
-    pub static ref CONFIG_DEF: ElGamal = ElGamal {
+    pub static ref CONFIG_ELG_DEF: ElGamal = ElGamal {
         mode: String::from("generate"),
         key: String::from("key"),
         input: String::from("stdin"),
