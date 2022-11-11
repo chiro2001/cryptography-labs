@@ -1,8 +1,9 @@
 use std::error::{Error};
 use std::{io};
+use std::fmt::{Display, Formatter};
 use num::Integer;
 use num_bigint::{BigInt, RandBigInt, Sign, ToBigInt, ToBigUint};
-use num_traits::{One, Pow, Signed, Zero};
+use num_traits::{One, Pow, Signed};
 use rsa::RSA;
 use crate::elgamal::keys::ElGamalKey;
 use sha2::Sha256;
@@ -51,6 +52,22 @@ pub enum RunMode {
     Sign,
     Check,
 }
+
+#[derive(Debug)]
+pub enum ElgamalError {
+    CheckError
+}
+
+impl Display for ElgamalError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ElgamalError::CheckError => f.write_str("Check sign failed!"),
+            // _ => f.write_str("Unknown Error!")
+        }
+    }
+}
+
+impl Error for ElgamalError {}
 
 pub trait ElGamalTrait {
     fn elgamal_generate_key(&self) -> ElGamalKey;
@@ -178,11 +195,27 @@ impl ElGamalTrait for ElGamal {
             }
             RunMode::Sign => {
                 let key = ElGamalKey::from(self.key.clone());
-                assert_ne!(key.private.x, BigInt::zero(), "Private key must be provided!");
-                let sign = self.elgamal_sign(&key);
-                
+                assert!(!key.is_empty(), "Private & Public key must be provided!");
+                let mut sign = self.elgamal_sign(&key);
+                sign.save(self.key.clone() + ".sig", !self.binary).unwrap();
             }
-            RunMode::Check => {}
+            RunMode::Check => {
+                let key = ElGamalKey::from(self.key.clone());
+                let key_pub = key.public;
+                assert!(!key_pub.is_empty(), "Public key must be provided!");
+                let sign = ElGamalSign::from(self.key.clone() + ".pub");
+                let result = self.elgamal_check(&sign, &key_pub);
+                if !self.silent {
+                    if !result {
+                        println!("Check failed!")
+                    } else {
+                        println!("Check passed!")
+                    }
+                }
+                if !result {
+                    return Err(Box::new(ElgamalError::CheckError));
+                }
+            }
         }
         Ok(())
     }

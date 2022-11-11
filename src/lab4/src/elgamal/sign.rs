@@ -20,7 +20,7 @@ impl Default for ElGamalSign {
 
 impl Savable for ElGamalSign {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>> {
-        let mut f = Self::get_file_writer(path, base64_output);
+        let mut f = Self::get_file_writer(path, base64_output, "FILE_SIGN");
         let data = vec![self.r.to_bytes_le().1, self.s.to_bytes_le().1];
         let len = data.iter().map(|x| x.len() as u32).collect::<Vec<_>>();
         for l in len {

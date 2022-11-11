@@ -5,13 +5,14 @@ use num_bigint::BigInt;
 use num_traits::Zero;
 use rsa::keys::KeyWriter;
 
+
 pub trait Savable {
-    fn get_file_writer(path: String, base64_output: bool) -> Box<dyn Write> {
+    fn get_file_writer(path: String, base64_output: bool, key_type: &str) -> Box<dyn Write> {
         match base64_output {
             true => {
                 let mut key_writer = KeyWriter::from(Box::new(File::create(path).unwrap()));
-                key_writer.header = "-----BEGIN ELGAMAL-RS KEY-----".to_string();
-                key_writer.footer = "-----END ELGAMAL-RS KEY-----".to_string();
+                key_writer.header = format!("-----BEGIN ELGAMAL-RS {}-----", key_type);
+                key_writer.footer = format!("-----END ELGAMAL-RS {}-----", key_type);
                 Box::new(base64::write::EncoderWriter::new(
                     key_writer,
                     base64::STANDARD))
@@ -29,10 +30,9 @@ pub struct ElGamalKey {
     pub private: ElGamalPrivateKey,
 }
 
-impl Default for ElGamalKey {
-    fn default() -> Self {
-        Self { public: Default::default(), private: Default::default() }
-    }
+#[derive(Debug)]
+pub struct ElGamalPrivateKey {
+    pub x: BigInt,
 }
 
 #[derive(Debug)]
@@ -40,6 +40,12 @@ pub struct ElGamalPublicKey {
     pub p: BigInt,
     pub g: BigInt,
     pub y: BigInt,
+}
+
+impl Default for ElGamalKey {
+    fn default() -> Self {
+        Self { public: Default::default(), private: Default::default() }
+    }
 }
 
 impl Default for ElGamalPublicKey {
@@ -52,11 +58,6 @@ impl Default for ElGamalPublicKey {
     }
 }
 
-#[derive(Debug)]
-pub struct ElGamalPrivateKey {
-    pub x: BigInt,
-}
-
 impl Default for ElGamalPrivateKey {
     fn default() -> Self {
         Self { x: BigInt::zero() }
@@ -65,7 +66,7 @@ impl Default for ElGamalPrivateKey {
 
 impl Savable for ElGamalPrivateKey {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>> {
-        let mut f = get_file_writer(path, base64_output);
+        let mut f = Self::get_file_writer(path, base64_output, "PRIVATE_KEY");
         let data = self.x.to_bytes_le().1;
         f.write_all(&(data.len() as u32).to_le_bytes()).unwrap();
         f.write_all(&self.x.to_bytes_le().1).unwrap();
@@ -76,7 +77,7 @@ impl Savable for ElGamalPrivateKey {
 
 impl Savable for ElGamalPublicKey {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>> {
-        let mut f = get_file_writer(path, base64_output);
+        let mut f = Self::get_file_writer(path, base64_output, "PUBLIC_KEY");
         let data = vec![self.p.to_bytes_le().1, self.y.to_bytes_le().1, self.g.to_bytes_le().1];
         let len = data.iter().map(|x| x.len() as u32).collect::<Vec<_>>();
         for l in len {
@@ -96,5 +97,27 @@ impl Savable for ElGamalKey {
         self.public.save(path_public, base64_output).unwrap();
         self.private.save(path, base64_output).unwrap();
         Ok(())
+    }
+}
+
+pub trait IsEmptyKey {
+    fn is_empty(&self) -> bool;
+}
+
+impl IsEmptyKey for ElGamalPublicKey {
+    fn is_empty(&self) -> bool {
+        self.p.is_zero() || self.y.is_zero() || self.g.is_zero()
+    }
+}
+
+impl IsEmptyKey for ElGamalPrivateKey {
+    fn is_empty(&self) -> bool {
+        self.x.is_zero()
+    }
+}
+
+impl IsEmptyKey for ElGamalKey {
+    fn is_empty(&self) -> bool {
+        self.private.is_empty() && self.public.is_empty()
     }
 }
