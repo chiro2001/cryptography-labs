@@ -187,8 +187,9 @@ impl ElGamalTrait for ElGamal {
 
     fn run_elgamal(&mut self) -> Result<(), Box<dyn Error>> {
         if self.output == "stdout" {
-            // self.silent = true
+            self.silent = true
         }
+        SILENT.write().unwrap();
         match self.elgamal_run_mode() {
             RunMode::Generate => {
                 let mut key = self.elgamal_generate_key();

@@ -30,7 +30,9 @@ impl Savable for ElGamalSign {
             f.write_all(d.as_slice()).unwrap();
         }
         f.flush().unwrap();
-        println!("Sign save bytes: {} : {} + {}", len.iter().sum::<u32>(), self.r.to_bytes_le().1.len(), self.s.to_bytes_le().1.len());
+        if Self::save_debug() {
+            println!("Sign save bytes: {} : {} + {}", len.iter().sum::<u32>(), self.r.to_bytes_le().1.len(), self.s.to_bytes_le().1.len());
+        }
         Ok(())
     }
 }

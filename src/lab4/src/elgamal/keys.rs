@@ -21,6 +21,10 @@ pub trait Savable {
         }
     }
 
+    fn save_debug() -> bool {
+        false
+    }
+
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>>;
 }
 
@@ -71,7 +75,9 @@ impl Savable for ElGamalPrivateKey {
         f.write_all(&(data.len() as u32).to_le_bytes()).unwrap();
         f.write_all(&self.x.to_bytes_le().1).unwrap();
         f.flush().unwrap();
-        println!("Private key save bytes: {} : {}", data.len(), self.x.to_bytes_le().1.len());
+        if Self::save_debug() {
+            println!("Private key save bytes: {} : {}", data.len(), self.x.to_bytes_le().1.len());
+        }
         Ok(())
     }
 }
@@ -88,8 +94,10 @@ impl Savable for ElGamalPublicKey {
             f.write_all(d.as_slice()).unwrap();
         }
         f.flush().unwrap();
-        println!("Public key save bytes: {} : {} + {} + {}", len.iter().sum::<u32>(),
-                 self.p.to_bytes_le().1.len(), self.g.to_bytes_le().1.len(), self.y.to_bytes_le().1.len());
+        if Self::save_debug() {
+            println!("Public key save bytes: {} : {} + {} + {}", len.iter().sum::<u32>(),
+                     self.p.to_bytes_le().1.len(), self.g.to_bytes_le().1.len(), self.y.to_bytes_le().1.len());
+        }
         Ok(())
     }
 }

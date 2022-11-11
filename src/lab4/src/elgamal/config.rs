@@ -8,8 +8,8 @@ lazy_static! {
     pub static ref CONFIG_DEF: ElGamal = ElGamal {
         mode: String::from("generate"),
         key: String::from("key"),
-        // input: String::from("stdin"),
-        input: String::from("data/lab4-message.txt"),
+        input: String::from("stdin"),
+        // input: String::from("data/lab4-message.txt"),
         output: String::from("stdout"),
         // output: String::from("data/data.tmp"),
         prime_min: 10, prime_max: 12,

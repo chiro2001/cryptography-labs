@@ -22,5 +22,6 @@ lazy_static! {
     };
     pub static ref SILENT: MutStatic<bool> =
         // MutStatic::new();
-        MutStatic::from(false);
+        // MutStatic::from(false);
+        MutStatic::from(true);
 }

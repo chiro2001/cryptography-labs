@@ -1,12 +1,15 @@
 ifdef BINARY
 BINARY_OPTS := --binary
 endif
+SOURCE_OPTS := -i data/lab4-message.txt
+
+OPTS := $(BINARY_OPTS) $(SOURCE_OPTS)
 
 test:
-	cargo run -- $(BINARY_OPTS) -m generate
+	cargo run -- $(OPTS) -m generate
 	sleep 1
-	cargo run -- $(BINARY_OPTS) -m sign
+	cargo run -- $(OPTS) -m sign
 	sleep 1
-	cargo run -- $(BINARY_OPTS) -m test
+	cargo run -- $(OPTS) -m test
 	sleep 1
-	cargo run -- $(BINARY_OPTS) -m check
+	cargo run -- $(OPTS) -m check
