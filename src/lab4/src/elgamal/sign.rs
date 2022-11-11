@@ -6,7 +6,7 @@ use num_traits::Zero;
 use rsa::keys::KeyReader;
 use crate::Savable;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ElGamalSign {
     pub r: BigInt,
     pub s: BigInt,

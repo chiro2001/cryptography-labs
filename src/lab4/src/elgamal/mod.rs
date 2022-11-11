@@ -223,9 +223,9 @@ impl ElGamalTrait for ElGamal {
 
 #[cfg(test)]
 mod test {
-    use std::{thread, time};
+    use std::{thread};
     use std::time::Duration;
-    use crate::{CONFIG_DEF, ElGamal, ElGamalTrait, Savable};
+    use crate::{CONFIG_DEF, ElGamal, ElGamalSign, ElGamalTrait, Savable};
     use crate::keys::ElGamalKey;
 
     #[test]
@@ -238,5 +238,34 @@ mod test {
         let key_load = ElGamalKey::from(r.key.clone());
         println!("load: {:#?}", key_load);
         assert_eq!(key_load, key_save);
+    }
+
+    #[test]
+    fn test_sign_save_load() {
+        let r: &ElGamal = CONFIG_DEF.get();
+        let key = r.elgamal_generate_key();
+        let mut sign_save = r.elgamal_sign(&key);
+        let sign_path = r.key.clone() + ".sig";
+        sign_save.save(sign_path.clone(), true).unwrap();
+        println!("save: {:#?}", sign_save);
+        thread::sleep(Duration::from_millis(1000));
+        let sign_load = ElGamalSign::from(sign_path);
+        println!("load: {:#?}", sign_load);
+        assert_eq!(sign_save, sign_load);
+    }
+
+    #[test]
+    fn test_sign() {
+        let r: &ElGamal = CONFIG_DEF.get();
+        let key = r.elgamal_generate_key();
+        let mut sign_save = r.elgamal_sign(&key);
+        let check = r.elgamal_check(&sign_save, &key.public);
+        assert!(check);
+        let sign_path = r.key.clone() + ".sig";
+        sign_save.save(sign_path.clone(), true).unwrap();
+        thread::sleep(Duration::from_millis(1000));
+        let sign_load = ElGamalSign::from(sign_path);
+        let check = r.elgamal_check(&sign_load, &key.public);
+        assert!(check);
     }
 }
