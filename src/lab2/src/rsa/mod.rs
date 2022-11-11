@@ -27,13 +27,13 @@ pub enum RunMode {
 
 #[derive(Debug, Parser)]
 pub struct RSA {
-    #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode", value_parser = ["generate", "encode", "decode", "test"])]
+    #[clap(short, long, value_parser, default_value = CONFIG_DEF.mode.as_str(), help = "Run mode")]
     pub mode: String,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.key.as_str(), help = "Key path, generate/detect `path' and `path.pub'")]
     pub key: String,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.comment.as_str(), help = "Attach comment to key files")]
     pub comment: String,
-    #[clap(long, value_parser, default_value_t = CONFIG_DEF.binary, help = "Output key in base64 format")]
+    #[clap(long, value_parser, default_value_t = CONFIG_DEF.binary, help = "Output key in binary format")]
     pub binary: bool,
     #[clap(short, long, value_parser, default_value = CONFIG_DEF.input.as_str(), help = "Input filename")]
     pub input: String,

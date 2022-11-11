@@ -8,8 +8,8 @@ lazy_static! {
     pub static ref CONFIG_DEF: ElGamal = ElGamal {
         mode: String::from("generate"),
         key: String::from("key"),
-        input: String::from("stdin"),
-        // input: String::from("data/lab2-Plaintext.txt"),
+        // input: String::from("stdin"),
+        input: String::from("data/lab4-message.txt"),
         output: String::from("stdout"),
         // output: String::from("data/data.tmp"),
         prime_min: 14, prime_max: 16,
@@ -17,8 +17,8 @@ lazy_static! {
         rounds: 10,
         time_max: 1000,
         silent: false,
-        threads: num_cpus::get(),
+        threads: num_cpus::get() / 4,
         retry: true,
-        comment: String::from("RSA-RS COMMENT")
+        comment: String::from("ELGAMAL-RS COMMENT")
     };
 }

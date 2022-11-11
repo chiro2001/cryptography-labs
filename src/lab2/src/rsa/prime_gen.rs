@@ -3,7 +3,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::mpsc;
 use std::thread;
 use chrono::Local;
-use indicatif::style::ProgressTracker;
 use lazy_static::lazy_static;
 use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
 use num_traits::*;
