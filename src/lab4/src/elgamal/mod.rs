@@ -5,9 +5,11 @@ use crate::elgamal::keys::ElGamalKey;
 
 pub mod config;
 pub mod keys;
+pub mod sign;
 
 pub use config::*;
 pub use keys::*;
+pub use sign::*;
 
 pub type ElGamal = RSA;
 

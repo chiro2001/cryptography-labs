@@ -82,14 +82,14 @@ impl RSA {
         *self = other;
     }
 
-    fn reader(&self) -> Box<dyn Read> {
+    pub fn reader(&self) -> Box<dyn Read> {
         match self.input.as_str() {
             "stdin" => Box::new(io::stdin()),
             f => Box::new(File::open(f).unwrap())
         }
     }
 
-    fn writer(&mut self) -> Box<dyn Write> {
+    pub fn writer(&mut self) -> Box<dyn Write> {
         match self.output.as_str() {
             "stdout" => {
                 self.silent = true;
@@ -152,7 +152,7 @@ impl RSA {
         assert!(res.is_one());
     }
 
-    fn read_source(reader: &mut dyn Read, bytes: usize) -> Vec<u8> {
+    pub fn read_source(reader: &mut dyn Read, bytes: usize) -> Vec<u8> {
         let mut source = [0 as u8; 1];
         let mut res = Vec::new();
         loop {
