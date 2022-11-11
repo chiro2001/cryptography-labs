@@ -3,13 +3,14 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::mpsc;
 use std::thread;
 use chrono::Local;
+use indicatif::style::ProgressTracker;
 use lazy_static::lazy_static;
 use num_bigint::{BigInt, BigUint, RandBigInt, ToBigInt};
 use num_traits::*;
-use crate::lib::prime_gen::PrimeError::Timeout;
+use crate::rsa::prime_gen::PrimeError::Timeout;
 use crate::RSA;
 use mut_static::MutStatic;
-use crate::lib::config::SILENT;
+use crate::rsa::config::SILENT;
 
 pub enum PrimeError {
     Timeout(i64)
@@ -108,14 +109,14 @@ impl RSA {
             if self.retry {
                 self.generate_prime(low, high)
             } else {
-                Err(PrimeError::Timeout(self.time_max))
+                Err(Timeout(self.time_max))
             }
         } else {
             Ok(PRIMES_CACHE.write().unwrap().pop().unwrap())
         }
     }
 
-    fn generate_one_prime(low: &BigUint, high: &BigUint, rounds: u32, time_max: i64) -> Result<BigInt, PrimeError> {
+    pub fn generate_one_prime(low: &BigUint, high: &BigUint, rounds: u32, time_max: i64) -> Result<BigInt, PrimeError> {
         let mut rng = rand::thread_rng();
         let epoch = 0xf;
         let start = Local::now().timestamp_millis();
@@ -139,7 +140,7 @@ impl RSA {
                 if !SILENT.read().unwrap().clone() {
                     println!("Failed generation in {} tries after {} ms", try_times, time);
                 }
-                return Err(PrimeError::Timeout(time));
+                return Err(Timeout(time));
             }
         }
     }

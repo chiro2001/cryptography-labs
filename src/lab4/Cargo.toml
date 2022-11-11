@@ -9,3 +9,6 @@ description = "Simple ElGamal lab"
 
 [dependencies]
 rsa = { path = "../lab2" }
+num = "0.4.0"
+num-bigint = { version = "0.4.3", features = ["rand"] }
+num-traits = "0.2.15"

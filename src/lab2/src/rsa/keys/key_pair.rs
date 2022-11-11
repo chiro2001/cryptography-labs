@@ -1,5 +1,5 @@
 use std::error::Error;
-use crate::lib::keys::key_data::*;
+use crate::rsa::keys::key_data::*;
 
 #[derive(Debug)]
 pub struct KeyPair {

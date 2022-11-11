@@ -1,11 +1,10 @@
-extern crate core;
+mod rsa;
 
-mod lib;
+pub use crate::rsa::*;
+pub use crate::rsa::config::SILENT;
+pub use crate::RSA;
 
 use std::error::Error;
-use crate::lib::*;
-use crate::lib::config::SILENT;
-use crate::RSA;
 use clap::Parser;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -29,8 +28,8 @@ mod tests {
     use num_traits::One;
     use crate::RSA;
     use crate::RunMode;
-    use crate::lib::config::CONFIG_DEF;
-    use crate::lib::keys::{Key, KeySet};
+    use crate::rsa::config::CONFIG_DEF;
+    use crate::rsa::keys::{Key, KeySet};
 
     #[test]
     fn gen_prime() -> Result<(), Box<dyn Error>> {
