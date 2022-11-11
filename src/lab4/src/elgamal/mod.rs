@@ -51,6 +51,7 @@ pub enum RunMode {
     Generate,
     Sign,
     Check,
+    Test,
 }
 
 #[derive(Debug)]
@@ -179,13 +180,14 @@ impl ElGamalTrait for ElGamal {
             "generate" => Ok(RunMode::Generate),
             "sign" => Ok(RunMode::Sign),
             "check" => Ok(RunMode::Check),
+            "test" => Ok(RunMode::Test),
             _ => Err("Unknown run mode! available: generate(default), sign, check")
         }.unwrap()
     }
 
     fn run_elgamal(&mut self) -> Result<(), Box<dyn Error>> {
         if self.output == "stdout" {
-            self.silent = true
+            // self.silent = true
         }
         match self.elgamal_run_mode() {
             RunMode::Generate => {
@@ -197,7 +199,12 @@ impl ElGamalTrait for ElGamal {
                 let key = ElGamalKey::from(self.key.clone());
                 assert!(!key.is_empty(), "Private & Public key must be provided!");
                 let mut sign = self.elgamal_sign(&key);
-                sign.save(self.key.clone() + ".sig", !self.binary).unwrap();
+                let sign_path = self.key.clone() + ".sig";
+                sign.save(sign_path.clone(), !self.binary).unwrap();
+                if !self.silent {
+                    println!("sign: {:#?}", sign);
+                    println!("Save sign to file {}", sign_path);
+                }
             }
             RunMode::Check => {
                 let key = ElGamalKey::from(self.key.clone());
@@ -215,6 +222,13 @@ impl ElGamalTrait for ElGamal {
                 if !result {
                     return Err(Box::new(ElgamalError::CheckError));
                 }
+            }
+            RunMode::Test => {
+                println!("Loading keys...");
+                let key = ElGamalKey::from(self.key.clone());
+                println!("loaded key: {:#?}", key);
+                let sign = ElGamalSign::from(self.key.clone() + ".sig");
+                println!("loaded sign: {:#?}", sign);
             }
         }
         Ok(())
