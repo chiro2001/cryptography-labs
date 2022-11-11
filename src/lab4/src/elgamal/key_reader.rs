@@ -1,11 +1,8 @@
-use core::slice::SlicePattern;
 use std::fs::File;
-use std::io;
-use std::io::{BufRead, Cursor, Read, Seek, SeekFrom};
-use clap::builder::Str;
+use std::io::{Cursor, Read};
 use num_bigint::{BigInt, Sign};
-use rsa::keys::{KeyError, KeyReader};
-use crate::{ElGamal, ElGamalPrivateKey, ElGamalPublicKey};
+use rsa::keys::{KeyReader};
+use crate::{ElGamalPrivateKey, ElGamalPublicKey};
 use crate::keys::ElGamalKey;
 
 
@@ -17,13 +14,13 @@ impl From<String> for ElGamalPublicKey {
             _ => {}
         };
         let mut key_reader = KeyReader::new(Box::new(file.unwrap()));
-        let mut content = key_reader.read_all();
+        let content = key_reader.read_all();
         let mut cur = Cursor::new(&content);
         let mut len_p: [u8; 4] = [0; 4];
         let mut len_g: [u8; 4] = [0; 4];
         let mut len_y: [u8; 4] = [0; 4];
-        for mut l in vec![len_p, len_g, len_y] {
-            cur.read(&mut l).unwrap();
+        for l in vec![&mut len_p, &mut len_g, &mut len_y] {
+            cur.read(l).unwrap();
         }
         let (len_p, len_g, len_y) = (u32::from_le_bytes(len_p), u32::from_le_bytes(len_g), u32::from_le_bytes(len_y));
         let mut data = Vec::new();
@@ -32,15 +29,15 @@ impl From<String> for ElGamalPublicKey {
         let (mut p, mut g, mut y) = (Vec::new(), Vec::new(), Vec::new());
         let mut index = 0;
         for _ in 0..len_p {
-            &p.push(data[index]);
+            p.push(data[index]);
             index += 1;
         }
         for _ in 0..len_g {
-            &g.push(data[index]);
+            g.push(data[index]);
             index += 1;
         }
         for _ in 0..len_y {
-            &y.push(data[index]);
+            y.push(data[index]);
             index += 1;
         }
         let (p, g, y) = (
@@ -59,15 +56,14 @@ impl From<String> for ElGamalPrivateKey {
             _ => {}
         };
         let mut key_reader = KeyReader::new(Box::new(file.unwrap()));
-        let mut content = key_reader.read_all();
+        let content = key_reader.read_all();
         let mut cur = Cursor::new(&content);
         let mut len_x: [u8; 4] = [0; 4];
         cur.read(&mut len_x).unwrap();
-        let len_x = u32::from_le_bytes(len_x);
         let mut data = Vec::new();
         cur.read_to_end(&mut data).unwrap();
 
-        let mut x = BigInt::from_bytes_le(Sign::Plus, data.as_slice());
+        let x = BigInt::from_bytes_le(Sign::Plus, data.as_slice());
         ElGamalPrivateKey { x }
     }
 }

@@ -9,10 +9,6 @@ pub trait Savable {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>>;
 }
 
-trait Loadable {
-    fn load(&mut self, path: String) -> Self
-}
-
 #[derive(Debug)]
 pub struct ElGamalKey {
     pub public: ElGamalPublicKey,

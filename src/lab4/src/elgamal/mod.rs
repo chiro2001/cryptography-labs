@@ -154,9 +154,9 @@ impl ElGamalTrait for ElGamal {
         match self.elgamal_run_mode() {
             RunMode::Generate => {
                 let r: &ElGamal = CONFIG_DEF.get();
-                let key = r.elgamal_generate_key();
+                let mut key = r.elgamal_generate_key();
                 if !self.silent { println!("generated key: {:#?}", key); }
-
+                key.save(self.key.clone(), !self.binary).unwrap();
             }
             RunMode::Sign => {}
             RunMode::Check => {}
