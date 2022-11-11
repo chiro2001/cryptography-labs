@@ -1,6 +1,9 @@
 use std::error::Error;
 use clap::Parser;
-pub use elgamal::*;
+pub use crate::elgamal::*;
+use rsa::config::SILENT;
+
+mod elgamal;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let fake: ElGamalFake = ElGamalFake::parse();
