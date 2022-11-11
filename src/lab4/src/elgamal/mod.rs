@@ -223,6 +223,8 @@ impl ElGamalTrait for ElGamal {
 
 #[cfg(test)]
 mod test {
+    use std::{thread, time};
+    use std::time::Duration;
     use crate::{CONFIG_DEF, ElGamal, ElGamalTrait, Savable};
     use crate::keys::ElGamalKey;
 
@@ -231,8 +233,9 @@ mod test {
         let r: &ElGamal = CONFIG_DEF.get();
         let mut key_save = r.elgamal_generate_key();
         key_save.save(r.key.clone(), true).unwrap();
-        let key_load = ElGamalKey::from(r.key.clone());
         println!("save: {:#?}", key_save);
+        thread::sleep(Duration::from_millis(1000));
+        let key_load = ElGamalKey::from(r.key.clone());
         println!("load: {:#?}", key_load);
         assert_eq!(key_load, key_save);
     }
