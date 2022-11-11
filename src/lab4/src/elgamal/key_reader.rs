@@ -67,7 +67,7 @@ impl From<String> for ElGamalPrivateKey {
         let mut data = Vec::new();
         cur.read_to_end(&mut data).unwrap();
 
-        // println!("data: {:#?}", data);
+        // println!("data: {:?}", data);
 
         assert_eq!(len_x, data.len() as u32,
                    "Private key format err: private key lens: {}, data len {}", len_x, data.len());

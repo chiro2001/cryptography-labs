@@ -72,7 +72,7 @@ impl Error for ElgamalError {}
 
 pub trait ElGamalTrait {
     fn elgamal_generate_key(&self) -> ElGamalKey;
-    fn elgamal_sign(&self, key: &ElGamalKey) -> ElGamalSign;
+    fn elgamal_sign(&self, key: &ElGamalKey) -> (ElGamalSign, BigInt);
     fn data_hashed(&self) -> BigInt;
     fn elgamal_check(&self, sign: &ElGamalSign, key: &ElGamalPublicKey) -> bool;
     fn elgamal_run_mode(&self) -> RunMode;
@@ -130,7 +130,7 @@ impl ElGamalTrait for ElGamal {
         // }
     }
 
-    fn elgamal_sign(&self, key: &ElGamalKey) -> ElGamalSign {
+    fn elgamal_sign(&self, key: &ElGamalKey) -> (ElGamalSign, BigInt) {
         let mut rng = rand::thread_rng();
         let p = &key.public.p;
         let g = &key.public.g;
@@ -148,11 +148,11 @@ impl ElGamalTrait for ElGamal {
         while s.is_negative() {
             s = s + &p_1;
         }
-        if !SILENT.read().unwrap().clone() {
-            println!("k = {}, r = {}, p = {}, p_1 = {}, k_inv = {}, hashed = {}, s = {}, g = {}",
-                     k, r, p, p_1, k_inv, hashed, s, g);
-        }
-        ElGamalSign { r, s }
+        // if !SILENT.read().unwrap().clone() {
+        //     println!("k = {}, r = {}, p = {}, p_1 = {}, k_inv = {}, hashed = {}, s = {}, g = {}",
+        //              k, r, p, p_1, k_inv, hashed, s, g);
+        // }
+        (ElGamalSign { r, s }, k)
     }
 
     fn data_hashed(&self) -> BigInt {
@@ -195,18 +195,19 @@ impl ElGamalTrait for ElGamal {
                 let mut key = self.elgamal_generate_key();
                 key.save(self.key.clone(), !self.binary).unwrap();
                 if !self.silent {
-                    println!("generated key set: {:#?}", key);
+                    println!("generated key set: {:?}", key);
                     println!("Save key to file {} {}.pub", self.key, self.key);
                 }
             }
             RunMode::Sign => {
                 let key = ElGamalKey::from(self.key.clone());
                 assert!(!key.is_empty(), "Private & Public key must be provided!");
-                let mut sign = self.elgamal_sign(&key);
+                let (mut sign, k) = self.elgamal_sign(&key);
                 let sign_path = self.key.clone() + ".sig";
                 sign.save(sign_path.clone(), !self.binary).unwrap();
                 if !self.silent {
-                    println!("sign: {:#?}", sign);
+                    println!("key: {:?}", key);
+                    println!("k: {}, sign: {:?}", k, sign);
                     println!("Save sign to file {}", sign_path);
                 }
             }
@@ -230,9 +231,9 @@ impl ElGamalTrait for ElGamal {
             RunMode::Test => {
                 println!("Loading keys...");
                 let key = ElGamalKey::from(self.key.clone());
-                println!("loaded key: {:#?}", key);
+                println!("loaded key: {:?}", key);
                 let sign = ElGamalSign::from(self.key.clone() + ".sig");
-                println!("loaded sign: {:#?}", sign);
+                println!("loaded sign: {:?}", sign);
             }
         }
         Ok(())
@@ -251,10 +252,10 @@ mod test {
         let r: &ElGamal = CONFIG_DEF.get();
         let mut key_save = r.elgamal_generate_key();
         key_save.save(r.key.clone(), true).unwrap();
-        println!("save: {:#?}", key_save);
+        println!("save: {:?}", key_save);
         thread::sleep(Duration::from_millis(1000));
         let key_load = ElGamalKey::from(r.key.clone());
-        println!("load: {:#?}", key_load);
+        println!("load: {:?}", key_load);
         assert_eq!(key_load, key_save);
     }
 
@@ -265,10 +266,10 @@ mod test {
         let mut sign_save = r.elgamal_sign(&key);
         let sign_path = r.key.clone() + ".sig";
         sign_save.save(sign_path.clone(), true).unwrap();
-        println!("save: {:#?}", sign_save);
+        println!("save: {:?}", sign_save);
         thread::sleep(Duration::from_millis(1000));
         let sign_load = ElGamalSign::from(sign_path);
-        println!("load: {:#?}", sign_load);
+        println!("load: {:?}", sign_load);
         assert_eq!(sign_save, sign_load);
     }
 
