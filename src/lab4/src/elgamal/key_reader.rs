@@ -1,9 +1,12 @@
+use core::slice::SlicePattern;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, Cursor, Read, Seek, SeekFrom};
+use clap::builder::Str;
 use num_bigint::{BigInt, Sign};
 use rsa::keys::{KeyError, KeyReader};
-use crate::ElGamalPublicKey;
+use crate::{ElGamal, ElGamalPrivateKey, ElGamalPublicKey};
+use crate::keys::ElGamalKey;
 
 
 impl From<String> for ElGamalPublicKey {
@@ -45,5 +48,33 @@ impl From<String> for ElGamalPublicKey {
             BigInt::from_bytes_le(Sign::Plus, g.as_slice()),
             BigInt::from_bytes_le(Sign::Plus, y.as_slice()));
         ElGamalPublicKey { p, g, y }
+    }
+}
+
+impl From<String> for ElGamalPrivateKey {
+    fn from(path: String) -> Self {
+        let file = File::open(path);
+        match file {
+            Err(_) => return ElGamalPrivateKey::default(),
+            _ => {}
+        };
+        let mut key_reader = KeyReader::new(Box::new(file.unwrap()));
+        let mut content = key_reader.read_all();
+        let mut cur = Cursor::new(&content);
+        let mut len_x: [u8; 4] = [0; 4];
+        cur.read(&mut len_x).unwrap();
+        let len_x = u32::from_le_bytes(len_x);
+        let mut data = Vec::new();
+        cur.read_to_end(&mut data).unwrap();
+
+        let mut x = BigInt::from_bytes_le(Sign::Plus, data.as_slice());
+        ElGamalPrivateKey { x }
+    }
+}
+
+impl From<String> for ElGamalKey {
+    fn from(path: String) -> Self {
+        let path_pub = path.clone() + ".pub";
+        ElGamalKey { public: ElGamalPublicKey::from(path_pub), private: ElGamalPrivateKey::from(path) }
     }
 }
