@@ -1,8 +1,12 @@
+ifdef BINARY
+BINARY_OPTS := --binary
+endif
+
 test:
-	cargo run -- -m generate
+	cargo run -- $(BINARY_OPTS) -m generate
 	sleep 1
-	cargo run -- -m sign
+	cargo run -- $(BINARY_OPTS) -m sign
 	sleep 1
-	cargo run -- -m test
+	cargo run -- $(BINARY_OPTS) -m test
 	sleep 1
-	cargo run -- -m check
+	cargo run -- $(BINARY_OPTS) -m check

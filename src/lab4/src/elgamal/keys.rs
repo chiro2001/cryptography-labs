@@ -71,6 +71,7 @@ impl Savable for ElGamalPrivateKey {
         f.write_all(&(data.len() as u32).to_le_bytes()).unwrap();
         f.write_all(&self.x.to_bytes_le().1).unwrap();
         f.flush().unwrap();
+        println!("Private key save bytes: {} : {}", data.len(), self.x.to_bytes_le().1.len());
         Ok(())
     }
 }
@@ -80,13 +81,15 @@ impl Savable for ElGamalPublicKey {
         let mut f = Self::get_file_writer(path, base64_output, "PUBLIC_KEY");
         let data = vec![self.p.to_bytes_le().1, self.g.to_bytes_le().1, self.y.to_bytes_le().1];
         let len = data.iter().map(|x| x.len() as u32).collect::<Vec<_>>();
-        for l in len {
+        for l in &len {
             f.write_all(&l.to_le_bytes()).unwrap();
         }
-        for d in data {
+        for d in data.as_slice() {
             f.write_all(d.as_slice()).unwrap();
         }
         f.flush().unwrap();
+        println!("Public key save bytes: {} : {} + {} + {}", len.iter().sum::<u32>(),
+                 self.p.to_bytes_le().1.len(), self.g.to_bytes_le().1.len(), self.y.to_bytes_le().1.len());
         Ok(())
     }
 }

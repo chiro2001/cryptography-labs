@@ -5,10 +5,12 @@ use num_bigint::{BigInt, Sign};
 use crate::rsa::keys::{KeyError, Key};
 use crate::rsa::keys::key_data::KeyData;
 
+const READER_JUDGE_BUF: usize = 4;
+
 pub struct KeyReader {
     reader: Box<dyn Read>,
     pub binary: Option<bool>,
-    temp: [u8; 8],
+    temp: [u8; READER_JUDGE_BUF],
     read_buf: Vec<u8>,
     res_buf: Vec<u8>,
     cur: u64,
@@ -21,7 +23,7 @@ static KEY_DEBUG: bool = false;
 
 impl KeyReader {
     pub fn new(reader: Box<dyn Read>) -> Self {
-        let mut s = Self { reader, binary: None, temp: [0; 8], read_buf: vec![], res_buf: vec![], cur: 0, header: "".to_string(), footer: "".to_string() };
+        let mut s = Self { reader, binary: None, temp: [0; READER_JUDGE_BUF], read_buf: vec![], res_buf: vec![], cur: 0, header: "".to_string(), footer: "".to_string() };
         s.judge_binary().unwrap();
         if !s.binary.unwrap() { s.parse_text().unwrap(); } else { s.res_buf.append(&mut s.read_buf); }
         if KEY_DEBUG {
@@ -72,9 +74,9 @@ impl KeyReader {
         if self.binary.is_none() {
             match self.reader.read(&mut self.temp) {
                 Ok(n) => match n {
-                    8 => {
+                    READER_JUDGE_BUF => {
                         let count = self.temp.iter().filter(|x| x.is_ascii_graphic()).count();
-                        self.binary = Some(count < 8);
+                        self.binary = Some(count < READER_JUDGE_BUF);
                         if KEY_DEBUG { println!("binary: {:?}", self.binary); }
                         for t in self.temp { self.read_buf.push(t); }
                         if KEY_DEBUG { println!("count: {}, data: {:?}, temp: {:x?}, read_buf: {:x?}", count, String::from_utf8(self.temp.to_vec()), self.temp, self.read_buf); }

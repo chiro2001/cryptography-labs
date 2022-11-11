@@ -210,7 +210,7 @@ impl ElGamalTrait for ElGamal {
                 let key = ElGamalKey::from(self.key.clone());
                 let key_pub = key.public;
                 assert!(!key_pub.is_empty(), "Public key must be provided!");
-                let sign = ElGamalSign::from(self.key.clone() + ".pub");
+                let sign = ElGamalSign::from(self.key.clone() + ".sig");
                 let result = self.elgamal_check(&sign, &key_pub);
                 if !self.silent {
                     if !result {

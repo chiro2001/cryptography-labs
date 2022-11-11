@@ -26,6 +26,9 @@ impl From<String> for ElGamalPublicKey {
         let mut data = Vec::new();
         cur.read_to_end(&mut data).unwrap();
 
+        assert_eq!(len_p + len_g + len_y, data.len() as u32,
+                   "Public key format err: public key lens: ({}, {}, {}), data len {}", len_p, len_g, len_y, data.len());
+
         let (mut p, mut g, mut y) = (Vec::new(), Vec::new(), Vec::new());
         let mut index = 0;
         for _ in 0..len_p {
@@ -60,8 +63,14 @@ impl From<String> for ElGamalPrivateKey {
         let mut cur = Cursor::new(&content);
         let mut len_x: [u8; 4] = [0; 4];
         cur.read(&mut len_x).unwrap();
+        let len_x = u32::from_le_bytes(len_x);
         let mut data = Vec::new();
         cur.read_to_end(&mut data).unwrap();
+
+        println!("data: {:#?}", data);
+
+        assert_eq!(len_x, data.len() as u32,
+                   "Private key format err: private key lens: {}, data len {}", len_x, data.len());
 
         let x = BigInt::from_bytes_le(Sign::Plus, data.as_slice());
         ElGamalPrivateKey { x }

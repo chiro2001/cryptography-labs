@@ -23,13 +23,14 @@ impl Savable for ElGamalSign {
         let mut f = Self::get_file_writer(path, base64_output, "FILE_SIGN");
         let data = vec![self.r.to_bytes_le().1, self.s.to_bytes_le().1];
         let len = data.iter().map(|x| x.len() as u32).collect::<Vec<_>>();
-        for l in len {
+        for l in &len {
             f.write_all(&l.to_le_bytes()).unwrap();
         }
         for d in data {
             f.write_all(d.as_slice()).unwrap();
         }
         f.flush().unwrap();
+        println!("Sign save bytes: {} : {} + {}", len.iter().sum::<u32>(), self.r.to_bytes_le().1.len(), self.s.to_bytes_le().1.len());
         Ok(())
     }
 }
@@ -52,6 +53,9 @@ impl From<String> for ElGamalSign {
         let (len_r, len_s) = (u32::from_le_bytes(len_r), u32::from_le_bytes(len_s));
         let mut data = Vec::new();
         cur.read_to_end(&mut data).unwrap();
+
+        assert_eq!(len_r + len_s, data.len() as u32,
+                   "Sign format err: sign lens: ({}, {}), data len {}", len_r, len_s, data.len());
 
         let (mut r, mut s) = (Vec::new(), Vec::new());
         let mut index = 0;
