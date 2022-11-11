@@ -220,3 +220,20 @@ impl ElGamalTrait for ElGamal {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{CONFIG_DEF, ElGamal, ElGamalTrait, Savable};
+    use crate::keys::ElGamalKey;
+
+    #[test]
+    fn test_key_save_load() {
+        let r: &ElGamal = CONFIG_DEF.get();
+        let mut key_save = r.elgamal_generate_key();
+        key_save.save(r.key.clone(), true).unwrap();
+        let key_load = ElGamalKey::from(r.key.clone());
+        println!("save: {:#?}", key_save);
+        println!("load: {:#?}", key_load);
+        assert_eq!(key_load, key_save);
+    }
+}

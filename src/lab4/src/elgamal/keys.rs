@@ -24,18 +24,18 @@ pub trait Savable {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ElGamalKey {
     pub public: ElGamalPublicKey,
     pub private: ElGamalPrivateKey,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ElGamalPrivateKey {
     pub x: BigInt,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct ElGamalPublicKey {
     pub p: BigInt,
     pub g: BigInt,
@@ -78,7 +78,7 @@ impl Savable for ElGamalPrivateKey {
 impl Savable for ElGamalPublicKey {
     fn save(&mut self, path: String, base64_output: bool) -> Result<(), Box<dyn Error>> {
         let mut f = Self::get_file_writer(path, base64_output, "PUBLIC_KEY");
-        let data = vec![self.p.to_bytes_le().1, self.y.to_bytes_le().1, self.g.to_bytes_le().1];
+        let data = vec![self.p.to_bytes_le().1, self.g.to_bytes_le().1, self.y.to_bytes_le().1];
         let len = data.iter().map(|x| x.len() as u32).collect::<Vec<_>>();
         for l in len {
             f.write_all(&l.to_le_bytes()).unwrap();
