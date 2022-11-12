@@ -216,3 +216,77 @@ get key_pair: KeyPair { public: KeyData { mode: "PUBLIC_", comment: "RSA-RS COMM
 Test pass
 ```
 
+## Lab4
+
+ElGamal 生成密钥 / 数字签名 / 验证签名
+
+```shell
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ ./elgamal -h
+Usage: elgamal [OPTIONS]
+
+Options:
+  -m, --mode <MODE>            Run mode [default: generate]
+  -k, --key <KEY>              Key path, generate/detect `path' and `path.pub' [default: key]
+  -c, --comment <COMMENT>      Attach comment to key files [default: "ELGAMAL-RS COMMENT"]
+      --binary                 Output key in binary format
+  -i, --input <INPUT>          Input filename [default: stdin]
+  -o, --output <OUTPUT>        Output filename [default: stdout]
+      --prime-min <PRIME_MIN>  Min prime bits [default: 10]
+      --prime-max <PRIME_MAX>  Max prime bits [default: 12]
+  -r, --rounds <ROUNDS>        Miller Rabin calculate rounds [default: 10]
+      --time-max <TIME_MAX>    Max time in mill seconds that trying to generate a prime [default: 1000]
+  -s, --silent                 Disable log output
+      --retry                  Retry when failed to generate primes
+  -t, --threads <THREADS>      Calculate in <THREADS> threads [default: 5]
+  -h, --help                   Print help information
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ 
+```
+
+密钥生成
+
+```shell
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ ./elgamal -m generate -k key
+Done generation in 15 tries after 0 ms
+Done generation in 15 tries after 0 ms
+Done generation in 30 tries after 0 ms
+Done generation in 15 tries after 0 ms
+Done generation in 15 tries after 0 ms
+Use cached prime: 1999
+Use cached prime: 3359
+Use cached prime: 1693
+generated key set: ElGamalKey { public: ElGamalPublicKey { p: 3359, g: 1693, y: 884 }, private: ElGamalPrivateKey { x: 2517 } }
+Save key to file key key.pub
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ 
+```
+
+文件签名
+
+```shell
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ ./elgamal -k key -m sign -i elgamal 
+key: ElGamalKey { public: ElGamalPublicKey { p: 3359, g: 1693, y: 884 }, private: ElGamalPrivateKey { x: 2517 } }
+k: 499, sign: ElGamalSign { r: 280, s: 420 }
+Save sign to file key.sig
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ 
+```
+
+验证签名
+
+```shell
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ ./elgamal -k key -m check -i elgamal
+884^280 * 280^420 mod 3359 =?= 1693^53542441927936905103363006904913156046451446391687346369727530240800526517196 mod 3359
+left =?= right  |  401 =?= 401
+Check passed!
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ 
+```
+
+```shell
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ ./elgamal -k key -m check -i rsa    
+884^280 * 280^420 mod 3359 =?= 1693^11643977109521238678290631291562706216413968527097555853565369948689342216747 mod 3359
+left =?= right  |  401 =?= 729
+Check failed!
+Error: CheckError
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ echo $?
+1
+➜ chiro@chiro-pc  ~/programs/cryptography-labs/release/dynamic git:(master) ✗ 
+```
+
